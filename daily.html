@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordle Crew — Daily Results</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <h1>Wordle Crew</h1>
+      <p class="tagline">Daily boards, mini grids, and screenshot reveals.</p>
+    </div>
+    <nav class="nav">
+      <a href="index.html">Today</a>
+      <a href="leaderboard.html">Leaderboard</a>
+      <a href="daily.html" aria-current="page">Archive</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </header>
+
+  <main class="page-grid single-column">
+    <section class="card">
+      <div class="section-head wrap">
+        <h2>Daily results</h2>
+        <div class="button-row compact">
+          <button id="prev-puzzle" class="ghost-btn">← Prev</button>
+          <input id="puzzle-input" type="number" min="1" step="1" placeholder="Puzzle #" class="compact-input" />
+          <button id="load-puzzle">Load</button>
+          <button id="next-puzzle" class="ghost-btn">Next →</button>
+        </div>
+      </div>
+      <div id="daily-results" class="empty-state">Loading daily results…</div>
+    </section>
+  </main>
+
+  <div id="image-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-panel">
+      <button id="close-modal" class="ghost-btn">Close</button>
+      <img id="modal-image" alt="Wordle screenshot" />
+    </div>
+  </div>
+
+  <script type="module" src="js/daily.js"></script>
+</body>
+</html>

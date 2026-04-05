@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordle Crew — Profile</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <h1>Wordle Crew</h1>
+      <p class="tagline">Your stats, streaks, and history.</p>
+    </div>
+    <nav class="nav">
+      <a href="index.html">Today</a>
+      <a href="leaderboard.html">Leaderboard</a>
+      <a href="daily.html">Archive</a>
+      <a href="profile.html" aria-current="page">Profile</a>
+    </nav>
+  </header>
+
+  <main class="page-grid single-column">
+    <section class="card">
+      <div id="profile-wrap" class="empty-state">Loading profile…</div>
+    </section>
+  </main>
+
+  <script type="module" src="js/profile.js"></script>
+</body>
+</html>

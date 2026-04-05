@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordle Crew — Leaderboard</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <h1>Wordle Crew</h1>
+      <p class="tagline">All-time rankings and recent heaters.</p>
+    </div>
+    <nav class="nav">
+      <a href="index.html">Today</a>
+      <a href="leaderboard.html" aria-current="page">Leaderboard</a>
+      <a href="daily.html">Archive</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </header>
+
+  <main class="page-grid single-column">
+    <section class="card">
+      <div class="section-head">
+        <h2>Leaderboard</h2>
+        <div class="button-row compact">
+          <button class="filter-btn active" data-range="all">All time</button>
+          <button class="filter-btn" data-range="30">Last 30</button>
+          <button class="filter-btn" data-range="7">Last 7</button>
+        </div>
+      </div>
+      <div id="leaderboard-table-wrap" class="empty-state">Loading leaderboard…</div>
+    </section>
+  </main>
+
+  <script type="module" src="js/leaderboard.js"></script>
+</body>
+</html>
