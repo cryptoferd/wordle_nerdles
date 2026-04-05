@@ -23,14 +23,16 @@
 
   <main class="page-grid single-column">
     <section class="card">
-      <div class="section-head">
+      <div class="section-head wrap">
         <h2>Leaderboard</h2>
-        <div class="button-row compact">
-          <button class="filter-btn active" data-range="all">All time</button>
-          <button class="filter-btn" data-range="30">Last 30</button>
-          <button class="filter-btn" data-range="7">Last 7</button>
+        <div class="button-row compact filter-scroll">
+          <button class="filter-btn" data-range="daily">Daily winner</button>
+          <button class="filter-btn active" data-range="7">Weekly</button>
+          <button class="filter-btn" data-range="30">Monthly</button>
+          <button class="filter-btn" data-range="all">All time</button>
         </div>
       </div>
+      <div id="leaderboard-summary" class="summary-grid leaderboard-summary"></div>
       <div id="leaderboard-table-wrap" class="empty-state">Loading leaderboard…</div>
     </section>
   </main>

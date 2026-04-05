@@ -272,6 +272,59 @@ th { color: var(--muted); font-size: 0.9rem; }
   width: 120px;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.summary-card {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.highlight-card {
+  border-color: rgba(181,159,59,0.65);
+  box-shadow: inset 0 0 0 1px rgba(181,159,59,0.2);
+}
+.summary-card strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 1.2rem;
+}
+.summary-label {
+  display: inline-block;
+  color: var(--yellow);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.leaderboard-summary {
+  margin-bottom: 18px;
+}
+.filter-scroll {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(83,141,78,0.16);
+  border: 1px solid rgba(83,141,78,0.5);
+  font-weight: 800;
+}
+.winner-banner {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(181,159,59,0.12);
+  border: 1px solid rgba(181,159,59,0.35);
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -310,9 +363,31 @@ th { color: var(--muted); font-size: 0.9rem; }
   box-shadow: var(--shadow);
 }
 
+@media (max-width: 1100px) {
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 900px) {
-  .page-grid { grid-template-columns: 1fr; }
+  .page-grid { grid-template-columns: 1fr; padding: 16px; }
   .hero-card { flex-direction: column; align-items: stretch; }
   .hero-stats { min-width: 0; }
-  .site-header { padding: 20px; }
+  .site-header { padding: 16px; flex-direction: column; align-items: stretch; }
+  .site-header h1 { font-size: 1.65rem; }
+  .nav { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .nav a { white-space: nowrap; }
+  .button-row { flex-wrap: wrap; }
+  .filter-scroll { flex-wrap: nowrap; }
+  .modal-panel { margin: 2vh 12px; }
+}
+
+@media (max-width: 640px) {
+  .hero-copy h2 { font-size: 1.55rem; }
+  .hero-stats { grid-template-columns: 1fr; }
+  .summary-grid { grid-template-columns: 1fr; }
+  .daily-card-grid { grid-template-columns: 1fr; }
+  .player-row { align-items: flex-start; }
+  .score-pill { min-width: 58px; padding: 7px 10px; }
+  .screenshot-card, .screenshot-locked { height: 300px; }
+  .compact-input { width: 100%; min-width: 0; }
+  th, td { padding: 10px 8px; font-size: 0.92rem; }
 }
