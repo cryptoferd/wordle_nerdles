@@ -41,7 +41,7 @@ function showToast(message) {
   el.toast.textContent = message;
   el.toast.classList.remove('hidden');
   clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => el.toast.classList.add('hidden'), 2800);
+  showToast.timer = setTimeout(() => el.toast.classList.add('hidden'), 3000);
 }
 
 function setAuthUi(session) {
@@ -55,18 +55,15 @@ function setAuthUi(session) {
 }
 
 function previewParse() {
-  try {
-    const parsed = parseWordleShare(el.shareText.value);
-    el.parsePreview.innerHTML = `
-      <strong>Puzzle ${parsed.puzzleNumber}</strong><br>
-      Score: ${parsed.solved ? `${parsed.score}/6` : 'X/6'}<br>
-      <div class="mini-grid">${renderMiniGrid(parsed.rows)}</div>
-    `;
-    return parsed;
-  } catch (error) {
-    el.parsePreview.textContent = error.message;
-    throw error;
-  }
+  const parsed = parseWordleShare(el.shareText.value);
+
+  el.parsePreview.innerHTML = `
+    <strong>Puzzle ${parsed.puzzleNumber}</strong><br>
+    Score: ${parsed.solved ? `${parsed.score}/6` : 'X/6'}<br>
+    <div class="mini-grid">${renderMiniGrid(parsed.rows)}</div>
+  `;
+
+  return parsed;
 }
 
 async function uploadScreenshot(userId, puzzleNumber, file) {
@@ -92,13 +89,12 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function summarizeLeaderboard(rows, label) {
+function summarizeLeaderboard(rows) {
   const solvedRows = (rows || []).filter((row) => row.solved && Number.isFinite(row.score));
-  if (!solvedRows.length) {
-    return null;
-  }
+  if (!solvedRows.length) return null;
 
   const byUser = new Map();
+
   for (const row of solvedRows) {
     const current = byUser.get(row.user_id) || {
       user_id: row.user_id,
@@ -106,32 +102,30 @@ function summarizeLeaderboard(rows, label) {
       games: 0,
       totalScore: 0,
       best: null,
-      latest: null,
     };
+
     current.games += 1;
     current.totalScore += row.score;
     current.best = current.best == null ? row.score : Math.min(current.best, row.score);
-    current.latest = current.latest ? Math.max(Date.parse(current.latest), Date.parse(row.submitted_at)) : Date.parse(row.submitted_at);
+
     byUser.set(row.user_id, current);
   }
 
   const leaderboard = [...byUser.values()]
     .map((row) => ({
       ...row,
-      average: row.games ? row.totalScore / row.games : null,
+      average: row.totalScore / row.games,
     }))
     .sort((a, b) => {
-      if ((a.average ?? 99) !== (b.average ?? 99)) return (a.average ?? 99) - (b.average ?? 99);
+      if (a.average !== b.average) return a.average - b.average;
       if (a.games !== b.games) return b.games - a.games;
-      if ((a.best ?? 99) !== (b.best ?? 99)) return (a.best ?? 99) - (b.best ?? 99);
+      if (a.best !== b.best) return a.best - b.best;
       return a.display_name.localeCompare(b.display_name);
     });
 
-  const leader = leaderboard[0];
   return {
-    label,
     leaderboard,
-    leader,
+    leader: leaderboard[0],
   };
 }
 
@@ -141,6 +135,7 @@ function renderLeaderCard(nameEl, detailEl, summary, emptyText) {
     detailEl.textContent = emptyText;
     return;
   }
+
   const leader = summary.leader;
   nameEl.textContent = leader.display_name;
   detailEl.textContent = `${leader.average.toFixed(2)} avg across ${leader.games} solved game${leader.games === 1 ? '' : 's'}`;
@@ -181,31 +176,49 @@ async function loadRunningLeaders() {
   const weekCutoff = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
   const monthCutoff = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  renderLeaderCard(el.weeklyLeaderName, el.weeklyLeaderDetail, summarizeLeaderboard(rows.filter((r) => r.submitted_at >= weekCutoff), 'Weekly'), 'No weekly games yet.');
-  renderLeaderCard(el.monthlyLeaderName, el.monthlyLeaderDetail, summarizeLeaderboard(rows.filter((r) => r.submitted_at >= monthCutoff), 'Monthly'), 'No monthly games yet.');
-  renderLeaderCard(el.alltimeLeaderName, el.alltimeLeaderDetail, summarizeLeaderboard(rows, 'All time'), 'No all-time games yet.');
+  renderLeaderCard(
+    el.weeklyLeaderName,
+    el.weeklyLeaderDetail,
+    summarizeLeaderboard(rows.filter((r) => r.submitted_at >= weekCutoff)),
+    'No weekly games yet.'
+  );
+
+  renderLeaderCard(
+    el.monthlyLeaderName,
+    el.monthlyLeaderDetail,
+    summarizeLeaderboard(rows.filter((r) => r.submitted_at >= monthCutoff)),
+    'No monthly games yet.'
+  );
+
+  renderLeaderCard(
+    el.alltimeLeaderName,
+    el.alltimeLeaderDetail,
+    summarizeLeaderboard(rows),
+    'No all-time games yet.'
+  );
 }
 
 async function submitResult(event) {
   event.preventDefault();
 
-  if (!state.session?.user) {
-    showToast('Sign in first.');
-    return;
-  }
-
-  let parsed;
   try {
-    parsed = previewParse();
-  } catch {
-    return;
-  }
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  try {
-    const screenshotPath = await uploadScreenshot(state.session.user.id, parsed.puzzleNumber, el.screenshot.files[0]);
+    if (userError) throw userError;
+    if (!user) throw new Error('You must be signed in before submitting.');
+
+    const parsed = previewParse();
+
+    await ensureProfile(user.id, user.user_metadata?.display_name || user.email.split('@')[0]);
+
+    const screenshotFile = el.screenshot.files?.[0] || null;
+    const screenshotPath = await uploadScreenshot(user.id, parsed.puzzleNumber, screenshotFile);
 
     const payload = {
-      user_id: state.session.user.id,
+      user_id: user.id,
       puzzle_number: parsed.puzzleNumber,
       score: parsed.score,
       solved: parsed.solved,
@@ -214,16 +227,22 @@ async function submitResult(event) {
       screenshot_path: screenshotPath,
     };
 
-    const { error } = await supabase.from('submissions').upsert(payload, {
-      onConflict: 'user_id,puzzle_number',
-    });
+    const { error } = await supabase
+      .from('submissions')
+      .upsert(payload, {
+        onConflict: 'user_id,puzzle_number',
+      });
 
     if (error) throw error;
 
     el.submissionForm.reset();
     el.parsePreview.textContent = 'Parsed result will show here.';
     showToast('Result submitted.');
-    await Promise.all([loadTodayStats(parsed.puzzleNumber), loadRunningLeaders()]);
+
+    await Promise.all([
+      loadTodayStats(parsed.puzzleNumber),
+      loadRunningLeaders(),
+    ]);
   } catch (error) {
     console.error(error);
     showToast(error.message || 'Failed to submit result.');
@@ -271,15 +290,21 @@ async function loadTodayStats(forcedPuzzle = null) {
 
   const players = data || [];
   const solved = players.filter((p) => p.solved);
-  const avg = solved.length ? (solved.reduce((sum, p) => sum + p.score, 0) / solved.length).toFixed(2) : '—';
-  const solveRate = players.length ? `${Math.round((solved.length / players.length) * 100)}%` : '—';
+  const avg = solved.length
+    ? (solved.reduce((sum, p) => sum + p.score, 0) / solved.length).toFixed(2)
+    : '—';
+  const solveRate = players.length
+    ? `${Math.round((solved.length / players.length) * 100)}%`
+    : '—';
   const winner = solved[0] || null;
 
   el.todayPlayerCount.textContent = String(players.length);
   el.todayAverage.textContent = avg;
   el.todaySolveRate.textContent = solveRate;
   el.dailyWinnerName.textContent = winner ? winner.display_name : '—';
-  el.dailyWinnerDetail.textContent = winner ? `${winner.score}/6 · submitted ${new Date(winner.submitted_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : `No successful solve yet for puzzle #${puzzleNumber}.`;
+  el.dailyWinnerDetail.textContent = winner
+    ? `${winner.score}/6 · submitted ${new Date(winner.submitted_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+    : `No successful solve yet for puzzle #${puzzleNumber}.`;
 
   if (!players.length) {
     el.todayStandings.textContent = 'No results yet.';
@@ -291,16 +316,16 @@ async function loadTodayStats(forcedPuzzle = null) {
 
 async function handleAuthSubmit(event) {
   event.preventDefault();
+
   try {
     const email = el.email.value.trim();
     const password = el.password.value;
     const displayName = el.displayName.value.trim();
-    const result = await signUp(email, password, displayName);
-    if (result.user) {
-      await ensureProfile(result.user.id, displayName || email.split('@')[0]);
-    }
-    showToast('Signed up. Check your email if confirmation is enabled.');
+
+    await signUp(email, password, displayName);
+    showToast('Signed up. Check your email for the confirmation link.');
   } catch (error) {
+    console.error(error);
     showToast(error.message || 'Sign up failed.');
   }
 }
@@ -316,12 +341,24 @@ async function init() {
   }
 
   el.authForm.addEventListener('submit', handleAuthSubmit);
+
   el.signInBtn.addEventListener('click', async () => {
     try {
-      state.session = (await signIn(el.email.value.trim(), el.password.value)).session;
+      const result = await signIn(el.email.value.trim(), el.password.value);
+      state.session = result.session;
       setAuthUi(state.session);
+
+      if (state.session?.user) {
+        await ensureProfile(
+          state.session.user.id,
+          state.session.user.user_metadata?.display_name ||
+            state.session.user.email.split('@')[0]
+        );
+      }
+
       showToast('Signed in.');
     } catch (error) {
+      console.error(error);
       showToast(error.message || 'Sign in failed.');
     }
   });
@@ -331,6 +368,7 @@ async function init() {
       await sendMagicLink(el.email.value.trim());
       showToast('Magic link sent.');
     } catch (error) {
+      console.error(error);
       showToast(error.message || 'Could not send magic link.');
     }
   });
@@ -342,12 +380,17 @@ async function init() {
       setAuthUi(null);
       showToast('Signed out.');
     } catch (error) {
+      console.error(error);
       showToast(error.message || 'Sign out failed.');
     }
   });
 
   el.previewBtn.addEventListener('click', () => {
-    try { previewParse(); } catch {}
+    try {
+      previewParse();
+    } catch (error) {
+      el.parsePreview.textContent = error.message;
+    }
   });
 
   el.submissionForm.addEventListener('submit', submitResult);
@@ -355,6 +398,18 @@ async function init() {
   supabase.auth.onAuthStateChange(async (_event, session) => {
     state.session = session;
     setAuthUi(session);
+
+    if (session?.user) {
+      try {
+        await ensureProfile(
+          session.user.id,
+          session.user.user_metadata?.display_name ||
+            session.user.email.split('@')[0]
+        );
+      } catch (error) {
+        console.error('Profile sync failed:', error);
+      }
+    }
   });
 }
 
