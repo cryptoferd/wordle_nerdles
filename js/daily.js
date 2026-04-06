@@ -10,9 +10,19 @@ const loadBtn = document.getElementById('load-puzzle');
 const modal = document.getElementById('image-modal');
 const modalImg = document.getElementById('modal-image');
 const closeModalBtn = document.getElementById('close-modal');
+const DEFAULT_AVATAR = './assets/default-avatar.svg';
 
 let currentPuzzle = null;
 let session = null;
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
 
 async function getDefaultPuzzle() {
   const { data } = await supabase
@@ -42,7 +52,37 @@ async function getSignedScreenshotUrl(path) {
     .from('screenshots')
     .createSignedUrl(path, 60 * 10);
   if (error) return null;
-  return data.signedUrl;
+  return data?.signedUrl || null;
+}
+
+async function getAvatarUrlMap(rows) {
+  const uniquePaths = [...new Set((rows || []).map((row) => row.avatar_url).filter(Boolean))];
+  const map = new Map();
+
+  await Promise.all(uniquePaths.map(async (path) => {
+    const { data, error } = await supabase.storage.from('avatars').createSignedUrl(path, 60 * 60);
+    map.set(path, error ? DEFAULT_AVATAR : (data?.signedUrl || DEFAULT_AVATAR));
+  }));
+
+  return map;
+}
+
+function renderPlayerIdentity(row, avatarSrc, isWinner = false) {
+  const name = `${isWinner && row.solved ? '👑 ' : ''}${escapeHtml(row.display_name || 'Unknown')}`;
+  const catchphrase = row.catchphrase ? `<div class="catchphrase">“${escapeHtml(row.catchphrase)}”</div>` : '';
+
+  return `
+    <div class="player-row-top">
+      <img class="player-avatar circular" src="${avatarSrc}" alt="${escapeHtml(row.display_name || 'Unknown')} profile picture">
+      <div class="player-meta">
+        <div class="player-name-line">
+          <strong>${name}</strong>
+        </div>
+        ${catchphrase}
+        <span class="muted">${new Date(row.submitted_at).toLocaleString()}</span>
+      </div>
+    </div>
+  `;
 }
 
 async function loadDailyResults(puzzleNumber) {
@@ -71,13 +111,15 @@ async function loadDailyResults(puzzleNumber) {
 
   const unlocked = await viewerHasUnlockedPuzzle(puzzleNumber);
   const rows = data || [];
+  const avatarMap = await getAvatarUrlMap(rows);
 
   if (!rows.length) {
     wrap.textContent = 'No results for this puzzle yet.';
     return;
   }
 
-  const cards = await Promise.all(rows.map(async (row) => {
+  const cards = await Promise.all(rows.map(async (row, index) => {
+    const avatarSrc = avatarMap.get(row.avatar_url) || DEFAULT_AVATAR;
     let screenshotHtml = '';
     if (row.screenshot_path) {
       if (unlocked) {
@@ -93,10 +135,7 @@ async function loadDailyResults(puzzleNumber) {
     return `
       <article class="player-card">
         <div class="player-row">
-          <div class="player-meta">
-            <strong>${escapeHtml(row.display_name || 'Unknown')}</strong>
-            <span class="muted">${new Date(row.submitted_at).toLocaleString()}</span>
-          </div>
+          ${renderPlayerIdentity(row, avatarSrc, index === 0)}
           <div class="score-pill">${row.solved ? `${row.score}/6` : 'X/6'}</div>
         </div>
         <div class="mini-grid">${renderMiniGrid(row.rows_json || [])}</div>
@@ -122,27 +161,29 @@ function closeModal() {
   modalImg.src = '';
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
+prevBtn?.addEventListener('click', () => {
+  if (!currentPuzzle || currentPuzzle <= 1) return;
+  loadDailyResults(currentPuzzle - 1);
+});
 
-async function init() {
+nextBtn?.addEventListener('click', () => {
+  if (!currentPuzzle) return;
+  loadDailyResults(currentPuzzle + 1);
+});
+
+loadBtn?.addEventListener('click', () => {
+  const value = Number(puzzleInput.value);
+  if (!Number.isFinite(value) || value < 1) return;
+  loadDailyResults(value);
+});
+
+closeModalBtn?.addEventListener('click', closeModal);
+modal?.addEventListener('click', (event) => {
+  if (event.target?.dataset?.close === 'true') closeModal();
+});
+
+(async function init() {
   session = await getSession();
-  const defaultPuzzle = await getDefaultPuzzle();
-  await loadDailyResults(defaultPuzzle);
-
-  loadBtn.addEventListener('click', () => loadDailyResults(Number(puzzleInput.value)));
-  prevBtn.addEventListener('click', () => loadDailyResults(Math.max(1, Number(currentPuzzle || 2) - 1)));
-  nextBtn.addEventListener('click', () => loadDailyResults(Number(currentPuzzle || 0) + 1));
-  closeModalBtn.addEventListener('click', closeModal);
-  modal.addEventListener('click', (event) => {
-    if (event.target.dataset.close === 'true') closeModal();
-  });
-}
-
-init();
+  const puzzle = await getDefaultPuzzle();
+  await loadDailyResults(puzzle);
+})();

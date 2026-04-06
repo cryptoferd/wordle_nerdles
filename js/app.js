@@ -4,6 +4,7 @@ import { getSession, signIn, signOut, signUp, sendMagicLink, ensureProfile } fro
 
 const CHICAGO_TZ = 'America/Chicago';
 const PLAY_WORDLE_URL = 'https://www.nytimes.com/games/wordle/index.html';
+const DEFAULT_AVATAR = './assets/default-avatar.svg';
 
 const state = {
   session: null,
@@ -96,16 +97,18 @@ async function uploadScreenshot(userId, puzzleNumber, file) {
   return path;
 }
 
-function getTzParts(date = new Date(), timeZone = CHICAGO_TZ) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
+function getChicagoDateParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: CHICAGO_TZ,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     weekday: 'short',
-  }).formatToParts(date);
+  });
 
+  const parts = formatter.formatToParts(date);
   const map = {};
+
   for (const part of parts) {
     if (part.type !== 'literal') map[part.type] = part.value;
   }
@@ -119,34 +122,8 @@ function getTzParts(date = new Date(), timeZone = CHICAGO_TZ) {
   };
 }
 
-function toIsoDate(year, month, day) {
-  return [
-    String(year),
-    String(month).padStart(2, '0'),
-    String(day).padStart(2, '0'),
-  ].join('-');
-}
-
-function addDaysToIsoDate(isoDate, days) {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  const utc = new Date(Date.UTC(y, m - 1, d));
-  utc.setUTCDate(utc.getUTCDate() + days);
-  return toIsoDate(
-    utc.getUTCFullYear(),
-    utc.getUTCMonth() + 1,
-    utc.getUTCDate()
-  );
-}
-
-function getChicagoIsoDateFromTimestamp(timestamp) {
-  const parts = getTzParts(new Date(timestamp), CHICAGO_TZ);
-  return toIsoDate(parts.year, parts.month, parts.day);
-}
-
-function getChicagoWeekRange(now = new Date()) {
-  const parts = getTzParts(now, CHICAGO_TZ);
-
-  const weekdayMap = {
+function getChicagoWeekdayIndex(weekdayShort) {
+  const order = {
     Mon: 0,
     Tue: 1,
     Wed: 2,
@@ -155,40 +132,83 @@ function getChicagoWeekRange(now = new Date()) {
     Sat: 5,
     Sun: 6,
   };
+  return order[weekdayShort];
+}
 
-  const daysSinceMonday = weekdayMap[parts.weekdayShort] ?? 0;
-  const start = addDaysToIsoDate(toIsoDate(parts.year, parts.month, parts.day), -daysSinceMonday);
+function chicagoDateStringFromParts(year, month, day) {
+  const y = String(year);
+  const m = String(month).padStart(2, '0');
+  const d = String(day).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function addDaysToIsoDate(isoDate, days) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  utc.setUTCDate(utc.getUTCDate() + days);
+  return chicagoDateStringFromParts(
+    utc.getUTCFullYear(),
+    utc.getUTCMonth() + 1,
+    utc.getUTCDate()
+  );
+}
+
+function getChicagoWeekRange(date = new Date()) {
+  const parts = getChicagoDateParts(date);
+  const weekdayIndex = getChicagoWeekdayIndex(parts.weekdayShort);
+  const start = addDaysToIsoDate(parts.isoDate, -weekdayIndex);
   const endExclusive = addDaysToIsoDate(start, 7);
 
   return { start, endExclusive };
 }
 
-function getChicagoMonthRange(now = new Date()) {
-  const parts = getTzParts(now, CHICAGO_TZ);
-  const start = toIsoDate(parts.year, parts.month, 1);
+function getChicagoMonthRange(date = new Date()) {
+  const parts = getChicagoDateParts(date);
+  const start = chicagoDateStringFromParts(parts.year, parts.month, 1);
 
   const nextMonthYear = parts.month === 12 ? parts.year + 1 : parts.year;
   const nextMonth = parts.month === 12 ? 1 : parts.month + 1;
-  const endExclusive = toIsoDate(nextMonthYear, nextMonth, 1);
+  const endExclusive = chicagoDateStringFromParts(nextMonthYear, nextMonth, 1);
 
   return { start, endExclusive };
 }
 
 function formatChicagoDateLabel(isoDate) {
   const [year, month, day] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(year, month - 1, day));
+
   return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
     month: 'short',
     day: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(year, month - 1, day)));
+  }).format(dt);
 }
 
-function formatChicagoMonthLabel(now = new Date()) {
+function formatChicagoMonthLabel(date = new Date()) {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: CHICAGO_TZ,
     month: 'long',
     year: 'numeric',
-  }).format(now);
+  }).format(date);
+}
+
+function getChicagoIsoDateFromTimestamp(timestamp) {
+  const dt = new Date(timestamp);
+  const parts = getChicagoDateParts(dt);
+  return chicagoDateStringFromParts(parts.year, parts.month, parts.day);
+}
+
+
+async function getAvatarUrlMap(rows) {
+  const uniquePaths = [...new Set((rows || []).map((row) => row.avatar_url).filter(Boolean))];
+  const map = new Map();
+
+  await Promise.all(uniquePaths.map(async (path) => {
+    const { data, error } = await supabase.storage.from('avatars').createSignedUrl(path, 60 * 60);
+    map.set(path, error ? DEFAULT_AVATAR : (data?.signedUrl || DEFAULT_AVATAR));
+  }));
+
+  return map;
 }
 
 function summarizeLeaderboard(rows) {
@@ -245,24 +265,34 @@ function renderLeaderCard(nameEl, detailEl, summary, emptyText) {
   detailEl.textContent = `${leader.average.toFixed(2)} avg across ${leader.games} solved game${leader.games === 1 ? '' : 's'}`;
 }
 
-function renderTodayStandings(players) {
+async function renderTodayStandings(players) {
   if (!el.todayStandings) return;
+
+  const avatarMap = await getAvatarUrlMap(players);
 
   el.todayStandings.innerHTML = `
     <div class="standings-list">
-      ${players.map((player, index) => `
+      ${players.map((player, index) => {
+        const avatarSrc = avatarMap.get(player.avatar_url) || DEFAULT_AVATAR;
+        return `
         <article class="player-card">
           <div class="player-row">
-            <div class="player-meta">
-              <strong>${index === 0 && player.solved ? '👑 ' : ''}${escapeHtml(player.display_name || 'Unknown')}</strong>
-              <span class="muted">${new Date(player.submitted_at).toLocaleString()}</span>
+            <div class="player-row-top">
+              <img class="player-avatar circular" src="${avatarSrc}" alt="${escapeHtml(player.display_name || 'Unknown')} profile picture">
+              <div class="player-meta">
+                <div class="player-name-line">
+                  <strong>${index === 0 && player.solved ? '👑 ' : ''}${escapeHtml(player.display_name || 'Unknown')}</strong>
+                </div>
+                ${player.catchphrase ? `<div class="catchphrase">“${escapeHtml(player.catchphrase)}”</div>` : ''}
+                <span class="muted">${new Date(player.submitted_at).toLocaleString()}</span>
+              </div>
             </div>
             <div class="score-pill">${player.solved ? `${player.score}/6` : 'X/6'}</div>
           </div>
           ${index === 0 && player.solved ? `<div class="winner-banner">Daily winner — first best solve for puzzle #${player.puzzle_number}</div>` : ''}
           <div class="mini-grid">${renderMiniGrid(player.rows_json || [])}</div>
         </article>
-      `).join('')}
+      `}).join('')}
     </div>
   `;
 }
@@ -270,7 +300,7 @@ function renderTodayStandings(players) {
 async function loadRunningLeaders() {
   const { data, error } = await supabase
     .from('submission_feed')
-    .select('user_id, display_name, score, solved, submitted_at');
+    .select('user_id, display_name, avatar_url, catchphrase, score, solved, submitted_at');
 
   if (error) {
     console.error(error);
@@ -292,8 +322,8 @@ async function loadRunningLeaders() {
   });
 
   if (el.weeklyRangeLabel) {
-    el.weeklyRangeLabel.textContent =
-      `${formatChicagoDateLabel(weekRange.start)} – ${formatChicagoDateLabel(addDaysToIsoDate(weekRange.endExclusive, -1))} · Chicago`;
+    const weekEndLabel = formatChicagoDateLabel(addDaysToIsoDate(weekRange.endExclusive, -1));
+    el.weeklyRangeLabel.textContent = `${formatChicagoDateLabel(weekRange.start)} – ${weekEndLabel} · Chicago`;
   }
 
   if (el.monthlyRangeLabel) {
@@ -320,11 +350,6 @@ async function loadRunningLeaders() {
     summarizeLeaderboard(rows),
     'No all-time games yet.'
   );
-
-  console.log('Chicago week range:', weekRange);
-  console.log('Chicago month range:', monthRange);
-  console.log('Weekly rows:', weeklyRows);
-  console.log('Monthly rows:', monthlyRows);
 }
 
 async function loadTodayStats(forcedPuzzle = null) {
@@ -400,7 +425,7 @@ async function loadTodayStats(forcedPuzzle = null) {
     return;
   }
 
-  renderTodayStandings(players);
+  await renderTodayStandings(players);
 }
 
 async function submitResult(event) {
@@ -466,7 +491,7 @@ async function handleAuthSubmit(event) {
     const displayName = el.displayName?.value.trim();
 
     await signUp(email, password, displayName);
-    showToast('Signed up. You may now login!');
+    showToast('Signed up. Check your email for the confirmation link.');
   } catch (error) {
     console.error(error);
     showToast(error.message || 'Sign up failed.');

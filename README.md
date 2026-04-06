@@ -56,3 +56,18 @@ You can host this directly from the repo root or from a `docs/` folder. If you w
 - Play Today's Puzzle button on the home page
 - Past Answers page backed by the Wordle Hints API
 - 12-hour browser caching for Past Answers responses to reduce repeated API calls
+
+
+## New in v4
+- Private `avatars` bucket for circular profile pictures
+- Catchphrase field on profiles
+- Chicago-based week/month leaderboard windows
+- Consistent `Wordle Nerdles` page titles and headers
+
+### Supabase reminder
+After updating, re-run `sql/schema.sql` and create a private storage bucket named `avatars` with image MIME types enabled.
+
+
+## v5 update
+- Avatars now show on the home race board, archive results, and leaderboard tables.
+- Catchphrases appear under names when available.

@@ -1,12 +1,13 @@
 import { supabase } from './supabase-client.js';
 
 const CHICAGO_TZ = 'America/Chicago';
+const DEFAULT_AVATAR = './assets/default-avatar.svg';
 const wrap = document.getElementById('leaderboard-table-wrap');
 const summaryWrap = document.getElementById('leaderboard-summary');
 const buttons = [...document.querySelectorAll('.filter-btn')];
 
 function escapeHtml(value) {
-  return String(value)
+  return String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -67,12 +68,8 @@ function getChicagoMonthRange(date = new Date()) {
 }
 
 function getChicagoIsoDateFromTimestamp(timestamp) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: CHICAGO_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(timestamp));
+  const parts = getChicagoDateParts(new Date(timestamp));
+  return chicagoDateStringFromParts(parts.year, parts.month, parts.day);
 }
 
 function formatChicagoDateLabel(isoDate) {
@@ -92,6 +89,18 @@ function formatChicagoMonthLabel(date = new Date()) {
   }).format(date);
 }
 
+async function getAvatarUrlMap(rows) {
+  const uniquePaths = [...new Set((rows || []).map((row) => row.avatar_url).filter(Boolean))];
+  const map = new Map();
+
+  await Promise.all(uniquePaths.map(async (path) => {
+    const { data, error } = await supabase.storage.from('avatars').createSignedUrl(path, 60 * 60);
+    map.set(path, error ? DEFAULT_AVATAR : (data?.signedUrl || DEFAULT_AVATAR));
+  }));
+
+  return map;
+}
+
 function aggregateSolvedRows(rows) {
   const byUser = new Map();
   for (const row of rows) {
@@ -99,6 +108,8 @@ function aggregateSolvedRows(rows) {
     const current = byUser.get(row.user_id) || {
       user_id: row.user_id,
       display_name: row.display_name || 'Unknown',
+      avatar_url: row.avatar_url || null,
+      catchphrase: row.catchphrase || '',
       games: 0,
       totalScore: 0,
       best: null,
@@ -108,6 +119,8 @@ function aggregateSolvedRows(rows) {
     current.totalScore += row.score;
     current.best = current.best == null ? row.score : Math.min(current.best, row.score);
     current.lastPlayedAt = current.lastPlayedAt ? Math.max(Date.parse(current.lastPlayedAt), Date.parse(row.submitted_at)) : Date.parse(row.submitted_at);
+    if (!current.avatar_url && row.avatar_url) current.avatar_url = row.avatar_url;
+    if (!current.catchphrase && row.catchphrase) current.catchphrase = row.catchphrase;
     byUser.set(row.user_id, current);
   }
 
@@ -154,7 +167,19 @@ function renderSummaryCards(rows, title) {
   `;
 }
 
-function renderDailyWinner(rows) {
+function renderPlayerCell(row, avatarSrc, withCrown = false) {
+  return `
+    <div class="table-player">
+      <img class="leaderboard-avatar" src="${avatarSrc}" alt="${escapeHtml(row.display_name)} profile picture">
+      <div class="table-player-text">
+        <span class="name">${withCrown ? '👑 ' : ''}${escapeHtml(row.display_name)}</span>
+        ${row.catchphrase ? `<span class="tag">“${escapeHtml(row.catchphrase)}”</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+async function renderDailyWinner(rows) {
   const latestPuzzle = Math.max(...rows.map((row) => row.puzzle_number));
   const dailyRows = rows
     .filter((row) => row.puzzle_number === latestPuzzle)
@@ -172,6 +197,8 @@ function renderDailyWinner(rows) {
     return;
   }
 
+  const avatarMap = await getAvatarUrlMap(dailyRows);
+
   wrap.innerHTML = `
     <div class="table-wrap">
       <table>
@@ -187,7 +214,7 @@ function renderDailyWinner(rows) {
           ${dailyRows.map((row, index) => `
             <tr>
               <td><span class="rank-badge">${index + 1}</span></td>
-              <td>${index === 0 && row.solved ? '👑 ' : ''}${escapeHtml(row.display_name)}</td>
+              <td>${renderPlayerCell(row, avatarMap.get(row.avatar_url) || DEFAULT_AVATAR, index === 0 && row.solved)}</td>
               <td>${row.solved ? `${row.score}/6` : 'X/6'}</td>
               <td>${new Date(row.submitted_at).toLocaleString()}</td>
             </tr>
@@ -220,7 +247,7 @@ async function loadLeaderboard(range = 'week') {
       wrap.textContent = 'No leaderboard data yet.';
       return;
     }
-    renderDailyWinner(allRows);
+    await renderDailyWinner(allRows);
     return;
   }
 
@@ -253,6 +280,8 @@ async function loadLeaderboard(range = 'week') {
     return;
   }
 
+  const avatarMap = await getAvatarUrlMap(leaderboard);
+
   wrap.innerHTML = `
     <div class="table-wrap">
       <table>
@@ -269,7 +298,7 @@ async function loadLeaderboard(range = 'week') {
           ${leaderboard.map((row, index) => `
             <tr>
               <td><span class="rank-badge">${index + 1}</span></td>
-              <td>${index === 0 ? '👑 ' : ''}${escapeHtml(row.display_name)}</td>
+              <td>${renderPlayerCell(row, avatarMap.get(row.avatar_url) || DEFAULT_AVATAR, index === 0)}</td>
               <td>${row.games}</td>
               <td>${row.average.toFixed(2)}</td>
               <td>${row.best}/6</td>
