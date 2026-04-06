@@ -48,3 +48,11 @@ Then open `http://localhost:8000`.
 
 ## GitHub Pages
 You can host this directly from the repo root or from a `docs/` folder. If you want, I can restructure this starter specifically for your preferred GitHub Pages setup next.
+
+
+## Added in this version
+- Chicago-time weekly leaderboard (resets Monday)
+- Chicago-time calendar-month leaderboard
+- Play Today's Puzzle button on the home page
+- Past Answers page backed by the Wordle Hints API
+- 12-hour browser caching for Past Answers responses to reduce repeated API calls

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⬛🟨🟩Wordle Nerdles🟩🟨⬛</title>
+  <title>⬛🟨🟩Wordle Nerdles🟩🟨⬛ — Today</title>
   <link rel="stylesheet" href="css/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -11,16 +11,13 @@
   <header class="site-header">
     <div>
       <h1>Wordle Nerdles 🤓 🟩🟨⬛</h1>
-      <a id="play-today-btn" class="button button-primary play-today-btn">
-  Play Today’s Puzzle
-      </a>
       <p class="tagline">Daily results, receipts, and bragging rights.</p>
     </div>
     <nav class="nav">
       <a href="index.html" aria-current="page">Today</a>
       <a href="leaderboard.html">Leaderboard</a>
       <a href="daily.html">Archive</a>
-      <a href="./answers.html">Past Answers</a>
+      <a href="answers.html">Past Answers</a>
       <a href="profile.html">Profile</a>
     </nav>
   </header>
@@ -31,6 +28,7 @@
         <p class="eyebrow">Today</p>
         <h2 id="today-puzzle-label">Loading puzzle…</h2>
         <p>Paste your Wordle share text. Add a screenshot if you want receipts.</p>
+        <a id="play-today-btn" class="play-today-btn" href="#">Play Today’s Puzzle</a>
       </div>
       <div class="hero-stats" id="today-summary">
         <div class="stat-box"><span>Players</span><strong id="today-player-count">—</strong></div>
@@ -54,11 +52,13 @@
           <span class="summary-label">Weekly leader</span>
           <strong id="weekly-leader-name">—</strong>
           <p id="weekly-leader-detail" class="muted">No weekly games yet.</p>
+          <p id="weekly-range-label" class="range-label muted">Week starts Monday · Chicago</p>
         </article>
         <article class="summary-card">
           <span class="summary-label">Monthly leader</span>
           <strong id="monthly-leader-name">—</strong>
           <p id="monthly-leader-detail" class="muted">No monthly games yet.</p>
+          <p id="monthly-range-label" class="range-label muted">Calendar month · Chicago</p>
         </article>
         <article class="summary-card">
           <span class="summary-label">All-time leader</span>
@@ -127,7 +127,10 @@
     <section class="card standings-card">
       <div class="section-head">
         <h3>Today’s standings</h3>
-        <a href="daily.html">Open daily page</a>
+        <div class="button-row compact wrap">
+          <a class="ghost-link" href="daily.html">Open daily page</a>
+          <a class="ghost-link" href="answers.html">Browse past answers</a>
+        </div>
       </div>
       <div id="today-standings" class="empty-state">No results yet.</div>
     </section>

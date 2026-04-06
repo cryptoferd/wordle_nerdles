@@ -1,5 +1,6 @@
 import { supabase } from './supabase-client.js';
 
+const CHICAGO_TZ = 'America/Chicago';
 const wrap = document.getElementById('leaderboard-table-wrap');
 const summaryWrap = document.getElementById('leaderboard-summary');
 const buttons = [...document.querySelectorAll('.filter-btn')];
@@ -11,6 +12,84 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function getChicagoDateParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: CHICAGO_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map = {};
+  for (const part of parts) {
+    if (part.type !== 'literal') map[part.type] = part.value;
+  }
+
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    weekdayShort: map.weekday,
+    isoDate: `${map.year}-${map.month}-${map.day}`,
+  };
+}
+
+function chicagoDateStringFromParts(year, month, day) {
+  return `${String(year)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function addDaysToIsoDate(isoDate, days) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  utc.setUTCDate(utc.getUTCDate() + days);
+  return chicagoDateStringFromParts(utc.getUTCFullYear(), utc.getUTCMonth() + 1, utc.getUTCDate());
+}
+
+function getChicagoWeekRange(date = new Date()) {
+  const parts = getChicagoDateParts(date);
+  const order = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+  const start = addDaysToIsoDate(parts.isoDate, -order[parts.weekdayShort]);
+  const endExclusive = addDaysToIsoDate(start, 7);
+  return { start, endExclusive };
+}
+
+function getChicagoMonthRange(date = new Date()) {
+  const parts = getChicagoDateParts(date);
+  const start = chicagoDateStringFromParts(parts.year, parts.month, 1);
+  const nextMonthYear = parts.month === 12 ? parts.year + 1 : parts.year;
+  const nextMonth = parts.month === 12 ? 1 : parts.month + 1;
+  const endExclusive = chicagoDateStringFromParts(nextMonthYear, nextMonth, 1);
+  return { start, endExclusive };
+}
+
+function getChicagoIsoDateFromTimestamp(timestamp) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: CHICAGO_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(timestamp));
+}
+
+function formatChicagoDateLabel(isoDate) {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function formatChicagoMonthLabel(date = new Date()) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: CHICAGO_TZ,
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
 }
 
 function aggregateSolvedRows(rows) {
@@ -120,7 +199,7 @@ function renderDailyWinner(rows) {
   `;
 }
 
-async function loadLeaderboard(range = '7') {
+async function loadLeaderboard(range = 'week') {
   wrap.textContent = 'Loading leaderboard…';
   summaryWrap.innerHTML = '';
 
@@ -147,12 +226,23 @@ async function loadLeaderboard(range = '7') {
 
   let filteredRows = allRows;
   let title = 'All time';
-  if (range !== 'all') {
-    const days = Number(range);
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    filteredRows = allRows.filter((row) => Date.parse(row.submitted_at) >= since.getTime());
-    title = days === 7 ? 'Weekly' : 'Monthly';
+
+  if (range === 'week') {
+    const weekRange = getChicagoWeekRange();
+    filteredRows = allRows.filter((row) => {
+      const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
+      return chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
+    });
+    title = `Week of ${formatChicagoDateLabel(weekRange.start)} – ${formatChicagoDateLabel(addDaysToIsoDate(weekRange.endExclusive, -1))} · Chicago`;
+  }
+
+  if (range === 'month') {
+    const monthRange = getChicagoMonthRange();
+    filteredRows = allRows.filter((row) => {
+      const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
+      return chicagoDate >= monthRange.start && chicagoDate < monthRange.endExclusive;
+    });
+    title = `${formatChicagoMonthLabel()} · Chicago`;
   }
 
   const leaderboard = aggregateSolvedRows(filteredRows);
@@ -199,4 +289,4 @@ buttons.forEach((button) => {
   });
 });
 
-loadLeaderboard('7');
+loadLeaderboard('week');

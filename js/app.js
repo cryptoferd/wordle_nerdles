@@ -214,7 +214,6 @@ function summarizeLeaderboard(rows) {
       games: 0,
       totalScore: 0,
       best: null,
-      wins: 0,
     };
 
     current.games += 1;

@@ -1,47 +1,59 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Past Answers</title>
-  <link rel="stylesheet" href="./css/styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⬛🟨🟩Wordle Nerdles🟩🟨⬛ — Past Answers</title>
+  <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
   <header class="site-header">
-    <div class="container">
-      <h1>Past Wordle Answers</h1>
-          <nav class="nav">
-            <a href="index.html" aria-current="page">Today</a>
-            <a href="leaderboard.html">Leaderboard</a>
-            <a href="daily.html">Archive</a>
-            <a href="./answers.html">Past Answers</a>
-            <a href="profile.html">Profile</a>
-          </nav>
+    <div>
+      <h1>Wordle Nerdles 🤓 🟩🟨⬛</h1>
+      <p class="tagline">Past Wordle answers with respectful client-side caching.</p>
     </div>
+    <nav class="nav">
+      <a href="index.html">Today</a>
+      <a href="leaderboard.html">Leaderboard</a>
+      <a href="daily.html">Archive</a>
+      <a href="answers.html" aria-current="page">Past Answers</a>
+      <a href="profile.html">Profile</a>
+    </nav>
   </header>
 
-  <main class="container page-section">
+  <main class="page-grid single-column">
     <section class="card">
+      <div class="section-head wrap">
+        <div>
+          <h2>Past Wordle answers</h2>
+          <p class="muted">Search the answer archive. Results are cached in your browser for 12 hours to avoid repeat API calls.</p>
+        </div>
+        <div class="button-row compact wrap">
+          <a class="ghost-link" href="https://wordlehints.co.uk/wordle-past-answers/api/" target="_blank" rel="noopener noreferrer">API docs</a>
+        </div>
+      </div>
+
       <div class="answers-toolbar">
-        <input id="answer-search" type="text" placeholder="Search answer word">
+        <input id="answer-search" type="text" placeholder="Search answer word" />
         <select id="answer-order">
           <option value="desc">Newest first</option>
           <option value="asc">Oldest first</option>
         </select>
         <button id="answer-search-btn" type="button">Search</button>
+        <button id="answer-refresh-btn" type="button" class="ghost-btn">Refresh live data</button>
       </div>
 
       <div id="answers-meta" class="muted">Loading…</div>
       <div id="answers-list"></div>
 
       <div class="pagination-row">
-        <button id="prev-page" type="button">Previous</button>
+        <button id="prev-page" type="button" class="ghost-btn">Previous</button>
         <span id="page-label">Page 1</span>
-        <button id="next-page" type="button">Next</button>
+        <button id="next-page" type="button" class="ghost-btn">Next</button>
       </div>
     </section>
   </main>
 
-  <script type="module" src="./js/answers.js"></script>
+  <script type="module" src="js/answers.js"></script>
 </body>
 </html>
