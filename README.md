@@ -71,3 +71,9 @@ After updating, re-run `sql/schema.sql` and create a private storage bucket name
 ## v5 update
 - Avatars now show on the home race board, archive results, and leaderboard tables.
 - Catchphrases appear under names when available.
+
+
+## v6 update
+- Player names and avatars now link to public profile pages.
+- `profile.html?user=USER_ID` shows a player's public stats and recent submissions.
+- Your own profile remains editable; other profiles are view-only.

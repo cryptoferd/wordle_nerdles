@@ -72,16 +72,18 @@ function renderPlayerIdentity(row, avatarSrc, isWinner = false) {
   const catchphrase = row.catchphrase ? `<div class="catchphrase">“${escapeHtml(row.catchphrase)}”</div>` : '';
 
   return `
-    <div class="player-row-top">
-      <img class="player-avatar circular" src="${avatarSrc}" alt="${escapeHtml(row.display_name || 'Unknown')} profile picture">
-      <div class="player-meta">
-        <div class="player-name-line">
-          <strong>${name}</strong>
+    <a class="player-link" href="profile.html?user=${encodeURIComponent(row.user_id)}">
+      <div class="player-row-top">
+        <img class="player-avatar circular" src="${avatarSrc}" alt="${escapeHtml(row.display_name || 'Unknown')} profile picture">
+        <div class="player-meta">
+          <div class="player-name-line">
+            <strong>${name}</strong>
+          </div>
+          ${catchphrase}
+          <span class="muted">${new Date(row.submitted_at).toLocaleString()}</span>
         </div>
-        ${catchphrase}
-        <span class="muted">${new Date(row.submitted_at).toLocaleString()}</span>
       </div>
-    </div>
+    </a>
   `;
 }
 

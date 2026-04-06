@@ -23,6 +23,11 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
+function getRequestedUserId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('user');
+}
+
 async function getAvatarSignedUrl(path) {
   if (!path) return null;
   const { data, error } = await supabase.storage.from('avatars').createSignedUrl(path, 60 * 60);
@@ -55,6 +60,171 @@ async function uploadAvatar(userId, file) {
   return path;
 }
 
+function computeStats(submissions) {
+  const solved = (submissions || []).filter((row) => row.solved && Number.isFinite(row.score));
+  const total = submissions?.length || 0;
+  const solvedCount = solved.length;
+  const average = solvedCount ? (solved.reduce((sum, row) => sum + row.score, 0) / solvedCount).toFixed(2) : '—';
+  const best = solvedCount ? Math.min(...solved.map((row) => row.score)) : '—';
+  const solveRate = total ? `${Math.round((solvedCount / total) * 100)}%` : '—';
+  return { total, solvedCount, average, best, solveRate };
+}
+
+function renderRecentSubmissions(submissions) {
+  if (!submissions?.length) {
+    return '<p class="muted">No submissions yet.</p>';
+  }
+
+  return `
+    <div class="recent-submissions-grid">
+      ${submissions.slice(0, 12).map((row) => `
+        <article class="player-card">
+          <div class="player-row">
+            <div class="player-meta">
+              <div class="player-name-line">
+                <strong>Puzzle #${row.puzzle_number}</strong>
+              </div>
+              <span class="muted">${new Date(row.submitted_at).toLocaleString()}</span>
+            </div>
+            <div class="score-pill">${row.solved ? `${row.score}/6` : 'X/6'}</div>
+          </div>
+          <div class="mini-grid">${renderMiniGrid(row.rows_json || [])}</div>
+        </article>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function renderOwnProfile(session, profile, submissions, avatarSrc) {
+  const stats = computeStats(submissions);
+
+  wrap.innerHTML = `
+    <div class="profile-shell">
+      <section class="profile-header-card">
+        <div class="profile-header-main">
+          <div class="avatar-wrap large">
+            <img id="profile-avatar" class="profile-avatar circular" src="${avatarSrc}" alt="${escapeHtml(profile.display_name)} profile picture">
+          </div>
+          <div>
+            <h2>${escapeHtml(profile.display_name)}</h2>
+            <p class="tagline">Your public player card and personal stats.</p>
+            <p class="muted">${profile.catchphrase ? `“${escapeHtml(profile.catchphrase)}”` : 'Add a catchphrase that sounds like you.'}</p>
+          </div>
+        </div>
+
+        <div class="summary-grid">
+          <article class="summary-card"><span class="summary-label">Solved</span><strong>${stats.solvedCount}</strong><p class="muted">Out of ${stats.total} submissions</p></article>
+          <article class="summary-card"><span class="summary-label">Average</span><strong>${stats.average}</strong><p class="muted">Average winning score</p></article>
+          <article class="summary-card"><span class="summary-label">Best</span><strong>${stats.best === '—' ? '—' : `${stats.best}/6`}</strong><p class="muted">Best winning result</p></article>
+          <article class="summary-card"><span class="summary-label">Solve rate</span><strong>${stats.solveRate}</strong><p class="muted">Across all submissions</p></article>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h3>Edit profile</h3>
+          <span class="badge">Visible to your group</span>
+        </div>
+        <div class="stack-form">
+          <label>
+            Catchphrase
+            <input id="catchphrase-input" type="text" maxlength="120" placeholder="One line that represents you" value="${escapeHtml(profile.catchphrase || '')}">
+          </label>
+          <div class="button-row">
+            <button id="save-catchphrase-btn" type="button">Save Catchphrase</button>
+          </div>
+          <label>
+            Profile picture
+            <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp">
+          </label>
+          <div class="button-row">
+            <button id="save-avatar-btn" type="button">Upload Profile Picture</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h3>Recent submissions</h3>
+          <span class="badge">Latest 12</span>
+        </div>
+        ${renderRecentSubmissions(submissions)}
+      </section>
+    </div>
+  `;
+
+  const catchphraseInput = document.getElementById('catchphrase-input');
+  const saveCatchphraseBtn = document.getElementById('save-catchphrase-btn');
+  const avatarFileInput = document.getElementById('avatar-file');
+  const saveAvatarBtn = document.getElementById('save-avatar-btn');
+
+  saveCatchphraseBtn?.addEventListener('click', async () => {
+    try {
+      const value = catchphraseInput.value.trim();
+      const { error } = await supabase
+        .from('profiles')
+        .update({ catchphrase: value || null })
+        .eq('id', session.user.id);
+
+      if (error) throw error;
+      showToast('Catchphrase updated.');
+      await loadProfile();
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || 'Could not update catchphrase.');
+    }
+  });
+
+  saveAvatarBtn?.addEventListener('click', async () => {
+    try {
+      const file = avatarFileInput?.files?.[0];
+      await uploadAvatar(session.user.id, file);
+      showToast('Profile picture updated.');
+      await loadProfile();
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || 'Could not upload profile picture.');
+    }
+  });
+}
+
+function renderViewOnlyProfile(profile, submissions, avatarSrc, isSelfLink) {
+  const stats = computeStats(submissions);
+  const pageLabel = isSelfLink ? 'This is your public player card.' : 'Public player card';
+
+  wrap.innerHTML = `
+    <div class="profile-shell">
+      <section class="profile-header-card">
+        <div class="profile-view-header">
+          <div class="avatar-wrap large">
+            <img class="profile-avatar circular" src="${avatarSrc}" alt="${escapeHtml(profile.display_name)} profile picture">
+          </div>
+          <div>
+            <h2>${escapeHtml(profile.display_name)}</h2>
+            <p class="profile-view-subtitle">${pageLabel}</p>
+            <p class="muted">${profile.catchphrase ? `“${escapeHtml(profile.catchphrase)}”` : 'No catchphrase yet.'}</p>
+          </div>
+        </div>
+
+        <div class="profile-view-grid">
+          <article class="summary-card"><span class="summary-label">Solved</span><strong>${stats.solvedCount}</strong><p class="muted">Out of ${stats.total} submissions</p></article>
+          <article class="summary-card"><span class="summary-label">Average</span><strong>${stats.average}</strong><p class="muted">Average winning score</p></article>
+          <article class="summary-card"><span class="summary-label">Best</span><strong>${stats.best === '—' ? '—' : `${stats.best}/6`}</strong><p class="muted">Best winning result</p></article>
+          <article class="summary-card"><span class="summary-label">Solve rate</span><strong>${stats.solveRate}</strong><p class="muted">Across all submissions</p></article>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h3>Recent submissions</h3>
+          <span class="badge">Latest 12</span>
+        </div>
+        ${renderRecentSubmissions(submissions)}
+      </section>
+    </div>
+  `;
+}
+
 async function loadProfile() {
   const session = await getSession();
   if (!session?.user) {
@@ -62,9 +232,13 @@ async function loadProfile() {
     return;
   }
 
+  const requestedUserId = getRequestedUserId();
+  const targetUserId = requestedUserId || session.user.id;
+  const isOwnProfile = targetUserId === session.user.id;
+
   const [{ data: profile, error: profileError }, { data: submissions, error: submissionsError }] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', session.user.id).single(),
-    supabase.from('submissions').select('*').eq('user_id', session.user.id).order('puzzle_number', { ascending: false }),
+    supabase.from('profiles').select('*').eq('id', targetUserId).single(),
+    supabase.from('submissions').select('*').eq('user_id', targetUserId).order('puzzle_number', { ascending: false }),
   ]);
 
   if (profileError) {
@@ -77,108 +251,12 @@ async function loadProfile() {
   }
 
   const avatarSrc = await getAvatarSignedUrl(profile?.avatar_url) || DEFAULT_AVATAR;
-  const solved = (submissions || []).filter((row) => row.solved);
-  const average = solved.length ? (solved.reduce((sum, row) => sum + row.score, 0) / solved.length).toFixed(2) : '—';
 
-  wrap.innerHTML = `
-    <div class="profile-shell">
-      <section class="profile-header-card">
-        <div class="profile-header-main">
-          <div class="avatar-wrap large">
-            <img id="profile-avatar" class="profile-avatar circular" src="${avatarSrc}" alt="${escapeHtml(profile?.display_name || session.user.email)} avatar" />
-          </div>
-          <div class="profile-header-copy">
-            <h2>${escapeHtml(profile?.display_name || session.user.email)}</h2>
-            <p class="profile-email muted">${escapeHtml(session.user.email)}</p>
-            <p id="catchphrase-preview" class="catchphrase-display">${profile?.catchphrase ? `“${escapeHtml(profile.catchphrase)}”` : 'Add a catchphrase to give your profile some personality.'}</p>
-          </div>
-        </div>
-        <div class="hero-stats profile-stats">
-          <div class="stat-box"><span>Total submissions</span><strong>${submissions?.length || 0}</strong></div>
-          <div class="stat-box"><span>Solved</span><strong>${solved.length}</strong></div>
-          <div class="stat-box"><span>Average</span><strong>${average}</strong></div>
-        </div>
-      </section>
-
-      <section class="card profile-card-inner">
-        <div class="section-head"><h3>Edit profile</h3></div>
-        <form id="profile-form" class="stack-form">
-          <label>
-            Display name
-            <input id="profile-display-name" type="text" maxlength="40" value="${escapeHtml(profile?.display_name || '')}" placeholder="How you want to appear" />
-          </label>
-          <label>
-            Catchphrase
-            <textarea id="profile-catchphrase" rows="3" maxlength="120" placeholder="A one-liner that represents you">${escapeHtml(profile?.catchphrase || '')}</textarea>
-          </label>
-          <label>
-            Profile picture
-            <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" />
-          </label>
-          <div class="button-row wrap">
-            <button id="save-profile-btn" type="submit">Save profile</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="card">
-        <div class="section-head"><h3>Your recent boards</h3></div>
-        <div class="standings-list">
-          ${(submissions || []).map((row) => `
-            <article class="player-card">
-              <div class="player-row">
-                <strong>Puzzle #${row.puzzle_number}</strong>
-                <div class="score-pill">${row.solved ? `${row.score}/6` : 'X/6'}</div>
-              </div>
-              <div class="mini-grid">${renderMiniGrid(row.rows_json || [])}</div>
-            </article>
-          `).join('') || '<div class="empty-state">No submissions yet.</div>'}
-        </div>
-      </section>
-    </div>
-  `;
-
-  const form = document.getElementById('profile-form');
-  const displayNameInput = document.getElementById('profile-display-name');
-  const catchphraseInput = document.getElementById('profile-catchphrase');
-  const avatarInput = document.getElementById('avatar-file');
-  const avatarImg = document.getElementById('profile-avatar');
-  const catchphrasePreview = document.getElementById('catchphrase-preview');
-
-  avatarInput?.addEventListener('change', () => {
-    const file = avatarInput.files?.[0];
-    if (!file) return;
-    avatarImg.src = URL.createObjectURL(file);
-  });
-
-  form?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    try {
-      const updates = {
-        display_name: displayNameInput.value.trim() || session.user.email.split('@')[0],
-        catchphrase: catchphraseInput.value.trim() || null,
-      };
-
-      const { error: updateError } = await supabase.from('profiles').update(updates).eq('id', session.user.id);
-      if (updateError) throw updateError;
-
-      const file = avatarInput?.files?.[0];
-      if (file) {
-        const path = await uploadAvatar(session.user.id, file);
-        const signedUrl = await getAvatarSignedUrl(path);
-        avatarImg.src = signedUrl || DEFAULT_AVATAR;
-      }
-
-      catchphrasePreview.textContent = updates.catchphrase
-        ? `“${updates.catchphrase}”`
-        : 'Add a catchphrase to give your profile some personality.';
-
-      showToast('Profile updated.');
-    } catch (error) {
-      console.error(error);
-      showToast(error.message || 'Could not save profile.');
-    }
-  });
+  if (isOwnProfile) {
+    await renderOwnProfile(session, profile, submissions || [], avatarSrc);
+  } else {
+    renderViewOnlyProfile(profile, submissions || [], avatarSrc, false);
+  }
 }
 
 loadProfile();

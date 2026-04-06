@@ -169,13 +169,15 @@ function renderSummaryCards(rows, title) {
 
 function renderPlayerCell(row, avatarSrc, withCrown = false) {
   return `
-    <div class="table-player">
-      <img class="leaderboard-avatar" src="${avatarSrc}" alt="${escapeHtml(row.display_name)} profile picture">
-      <div class="table-player-text">
-        <span class="name">${withCrown ? '👑 ' : ''}${escapeHtml(row.display_name)}</span>
-        ${row.catchphrase ? `<span class="tag">“${escapeHtml(row.catchphrase)}”</span>` : ''}
+    <a class="profile-link" href="profile.html?user=${encodeURIComponent(row.user_id)}">
+      <div class="table-player">
+        <img class="leaderboard-avatar" src="${avatarSrc}" alt="${escapeHtml(row.display_name)} profile picture">
+        <div class="table-player-text">
+          <span class="name">${withCrown ? '👑 ' : ''}${escapeHtml(row.display_name)}</span>
+          ${row.catchphrase ? `<span class="tag">“${escapeHtml(row.catchphrase)}”</span>` : ''}
+        </div>
       </div>
-    </div>
+    </a>
   `;
 }
 

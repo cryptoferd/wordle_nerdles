@@ -277,16 +277,18 @@ async function renderTodayStandings(players) {
         return `
         <article class="player-card">
           <div class="player-row">
-            <div class="player-row-top">
-              <img class="player-avatar circular" src="${avatarSrc}" alt="${escapeHtml(player.display_name || 'Unknown')} profile picture">
-              <div class="player-meta">
-                <div class="player-name-line">
-                  <strong>${index === 0 && player.solved ? '👑 ' : ''}${escapeHtml(player.display_name || 'Unknown')}</strong>
+            <a class="player-link" href="profile.html?user=${encodeURIComponent(player.user_id)}">
+              <div class="player-row-top">
+                <img class="player-avatar circular" src="${avatarSrc}" alt="${escapeHtml(player.display_name || 'Unknown')} profile picture">
+                <div class="player-meta">
+                  <div class="player-name-line">
+                    <strong>${index === 0 && player.solved ? '👑 ' : ''}${escapeHtml(player.display_name || 'Unknown')}</strong>
+                  </div>
+                  ${player.catchphrase ? `<div class="catchphrase">“${escapeHtml(player.catchphrase)}”</div>` : ''}
+                  <span class="muted">${new Date(player.submitted_at).toLocaleString()}</span>
                 </div>
-                ${player.catchphrase ? `<div class="catchphrase">“${escapeHtml(player.catchphrase)}”</div>` : ''}
-                <span class="muted">${new Date(player.submitted_at).toLocaleString()}</span>
               </div>
-            </div>
+            </a>
             <div class="score-pill">${player.solved ? `${player.score}/6` : 'X/6'}</div>
           </div>
           ${index === 0 && player.solved ? `<div class="winner-banner">Daily winner — first best solve for puzzle #${player.puzzle_number}</div>` : ''}
