@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Past Answers</title>
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>Past Wordle Answers</h1>
+      <nav class="site-nav">
+        <a href="./index.html">Home</a>
+        <a href="./leaderboard.html">Leaderboard</a>
+        <a href="./answers.html" aria-current="page">Past Answers</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container page-section">
+    <section class="card">
+      <div class="answers-toolbar">
+        <input id="answer-search" type="text" placeholder="Search answer word">
+        <select id="answer-order">
+          <option value="desc">Newest first</option>
+          <option value="asc">Oldest first</option>
+        </select>
+        <button id="answer-search-btn" type="button">Search</button>
+      </div>
+
+      <div id="answers-meta" class="muted">Loading…</div>
+      <div id="answers-list"></div>
+
+      <div class="pagination-row">
+        <button id="prev-page" type="button">Previous</button>
+        <span id="page-label">Page 1</span>
+        <button id="next-page" type="button">Next</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/answers.js"></script>
+</body>
+</html>
