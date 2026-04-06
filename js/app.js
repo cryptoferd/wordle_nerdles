@@ -96,18 +96,16 @@ async function uploadScreenshot(userId, puzzleNumber, file) {
   return path;
 }
 
-function getChicagoDateParts(date = new Date()) {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: CHICAGO_TZ,
+function getTzParts(date = new Date(), timeZone = CHICAGO_TZ) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     weekday: 'short',
-  });
+  }).formatToParts(date);
 
-  const parts = formatter.formatToParts(date);
   const map = {};
-
   for (const part of parts) {
     if (part.type !== 'literal') map[part.type] = part.value;
   }
@@ -121,8 +119,34 @@ function getChicagoDateParts(date = new Date()) {
   };
 }
 
-function getChicagoWeekdayIndex(weekdayShort) {
-  const order = {
+function toIsoDate(year, month, day) {
+  return [
+    String(year),
+    String(month).padStart(2, '0'),
+    String(day).padStart(2, '0'),
+  ].join('-');
+}
+
+function addDaysToIsoDate(isoDate, days) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  utc.setUTCDate(utc.getUTCDate() + days);
+  return toIsoDate(
+    utc.getUTCFullYear(),
+    utc.getUTCMonth() + 1,
+    utc.getUTCDate()
+  );
+}
+
+function getChicagoIsoDateFromTimestamp(timestamp) {
+  const parts = getTzParts(new Date(timestamp), CHICAGO_TZ);
+  return toIsoDate(parts.year, parts.month, parts.day);
+}
+
+function getChicagoWeekRange(now = new Date()) {
+  const parts = getTzParts(now, CHICAGO_TZ);
+
+  const weekdayMap = {
     Mon: 0,
     Tue: 1,
     Wed: 2,
@@ -131,74 +155,40 @@ function getChicagoWeekdayIndex(weekdayShort) {
     Sat: 5,
     Sun: 6,
   };
-  return order[weekdayShort];
-}
 
-function chicagoDateStringFromParts(year, month, day) {
-  const y = String(year);
-  const m = String(month).padStart(2, '0');
-  const d = String(day).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function addDaysToIsoDate(isoDate, days) {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  const utc = new Date(Date.UTC(y, m - 1, d));
-  utc.setUTCDate(utc.getUTCDate() + days);
-  return chicagoDateStringFromParts(
-    utc.getUTCFullYear(),
-    utc.getUTCMonth() + 1,
-    utc.getUTCDate()
-  );
-}
-
-function getChicagoWeekRange(date = new Date()) {
-  const parts = getChicagoDateParts(date);
-  const weekdayIndex = getChicagoWeekdayIndex(parts.weekdayShort);
-  const start = addDaysToIsoDate(parts.isoDate, -weekdayIndex);
+  const daysSinceMonday = weekdayMap[parts.weekdayShort] ?? 0;
+  const start = addDaysToIsoDate(toIsoDate(parts.year, parts.month, parts.day), -daysSinceMonday);
   const endExclusive = addDaysToIsoDate(start, 7);
 
   return { start, endExclusive };
 }
 
-function getChicagoMonthRange(date = new Date()) {
-  const parts = getChicagoDateParts(date);
-  const start = chicagoDateStringFromParts(parts.year, parts.month, 1);
+function getChicagoMonthRange(now = new Date()) {
+  const parts = getTzParts(now, CHICAGO_TZ);
+  const start = toIsoDate(parts.year, parts.month, 1);
 
   const nextMonthYear = parts.month === 12 ? parts.year + 1 : parts.year;
   const nextMonth = parts.month === 12 ? 1 : parts.month + 1;
-  const endExclusive = chicagoDateStringFromParts(nextMonthYear, nextMonth, 1);
+  const endExclusive = toIsoDate(nextMonthYear, nextMonth, 1);
 
   return { start, endExclusive };
 }
 
 function formatChicagoDateLabel(isoDate) {
   const [year, month, day] = isoDate.split('-').map(Number);
-  const dt = new Date(Date.UTC(year, month - 1, day));
-
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'UTC',
     month: 'short',
     day: 'numeric',
-  }).format(dt);
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
-function formatChicagoMonthLabel(date = new Date()) {
+function formatChicagoMonthLabel(now = new Date()) {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: CHICAGO_TZ,
     month: 'long',
     year: 'numeric',
-  }).format(date);
-}
-
-function getChicagoIsoDateFromTimestamp(timestamp) {
-  const dt = new Date(timestamp);
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: CHICAGO_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(dt);
+  }).format(now);
 }
 
 function summarizeLeaderboard(rows) {
