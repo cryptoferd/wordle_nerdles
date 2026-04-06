@@ -2,6 +2,9 @@ import { supabase } from './supabase-client.js';
 import { parseWordleShare, renderMiniGrid } from './parser.js';
 import { getSession, signIn, signOut, signUp, sendMagicLink, ensureProfile } from './auth.js';
 
+const CHICAGO_TZ = 'America/Chicago';
+const PLAY_WORDLE_URL = 'https://www.nytimes.com/games/wordle/index.html';
+
 const state = {
   session: null,
   currentPuzzle: null,
@@ -34,10 +37,14 @@ const el = {
   monthlyLeaderDetail: document.getElementById('monthly-leader-detail'),
   alltimeLeaderName: document.getElementById('alltime-leader-name'),
   alltimeLeaderDetail: document.getElementById('alltime-leader-detail'),
+  weeklyRangeLabel: document.getElementById('weekly-range-label'),
+  monthlyRangeLabel: document.getElementById('monthly-range-label'),
+  playTodayBtn: document.getElementById('play-today-btn'),
   toast: document.getElementById('toast'),
 };
 
 function showToast(message) {
+  if (!el.toast) return;
   el.toast.textContent = message;
   el.toast.classList.remove('hidden');
   clearTimeout(showToast.timer);
@@ -47,11 +54,20 @@ function showToast(message) {
 function setAuthUi(session) {
   if (session?.user) {
     el.authStatus.textContent = `Signed in as ${session.user.email}`;
-    el.signOutBtn.classList.remove('hidden');
+    el.signOutBtn?.classList.remove('hidden');
   } else {
     el.authStatus.textContent = 'Not signed in.';
-    el.signOutBtn.classList.add('hidden');
+    el.signOutBtn?.classList.add('hidden');
   }
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function previewParse() {
@@ -80,13 +96,109 @@ async function uploadScreenshot(userId, puzzleNumber, file) {
   return path;
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+function getChicagoDateParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: CHICAGO_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map = {};
+
+  for (const part of parts) {
+    if (part.type !== 'literal') map[part.type] = part.value;
+  }
+
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    weekdayShort: map.weekday,
+    isoDate: `${map.year}-${map.month}-${map.day}`,
+  };
+}
+
+function getChicagoWeekdayIndex(weekdayShort) {
+  const order = {
+    Mon: 0,
+    Tue: 1,
+    Wed: 2,
+    Thu: 3,
+    Fri: 4,
+    Sat: 5,
+    Sun: 6,
+  };
+  return order[weekdayShort];
+}
+
+function chicagoDateStringFromParts(year, month, day) {
+  const y = String(year);
+  const m = String(month).padStart(2, '0');
+  const d = String(day).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function addDaysToIsoDate(isoDate, days) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  utc.setUTCDate(utc.getUTCDate() + days);
+  return chicagoDateStringFromParts(
+    utc.getUTCFullYear(),
+    utc.getUTCMonth() + 1,
+    utc.getUTCDate()
+  );
+}
+
+function getChicagoWeekRange(date = new Date()) {
+  const parts = getChicagoDateParts(date);
+  const weekdayIndex = getChicagoWeekdayIndex(parts.weekdayShort);
+  const start = addDaysToIsoDate(parts.isoDate, -weekdayIndex);
+  const endExclusive = addDaysToIsoDate(start, 7);
+
+  return { start, endExclusive };
+}
+
+function getChicagoMonthRange(date = new Date()) {
+  const parts = getChicagoDateParts(date);
+  const start = chicagoDateStringFromParts(parts.year, parts.month, 1);
+
+  const nextMonthYear = parts.month === 12 ? parts.year + 1 : parts.year;
+  const nextMonth = parts.month === 12 ? 1 : parts.month + 1;
+  const endExclusive = chicagoDateStringFromParts(nextMonthYear, nextMonth, 1);
+
+  return { start, endExclusive };
+}
+
+function formatChicagoDateLabel(isoDate) {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(year, month - 1, day));
+
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+  }).format(dt);
+}
+
+function formatChicagoMonthLabel(date = new Date()) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: CHICAGO_TZ,
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function getChicagoIsoDateFromTimestamp(timestamp) {
+  const dt = new Date(timestamp);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: CHICAGO_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(dt);
 }
 
 function summarizeLeaderboard(rows) {
@@ -102,6 +214,7 @@ function summarizeLeaderboard(rows) {
       games: 0,
       totalScore: 0,
       best: null,
+      wins: 0,
     };
 
     current.games += 1;
@@ -130,6 +243,8 @@ function summarizeLeaderboard(rows) {
 }
 
 function renderLeaderCard(nameEl, detailEl, summary, emptyText) {
+  if (!nameEl || !detailEl) return;
+
   if (!summary?.leader) {
     nameEl.textContent = '—';
     detailEl.textContent = emptyText;
@@ -142,6 +257,8 @@ function renderLeaderCard(nameEl, detailEl, summary, emptyText) {
 }
 
 function renderTodayStandings(players) {
+  if (!el.todayStandings) return;
+
   el.todayStandings.innerHTML = `
     <div class="standings-list">
       ${players.map((player, index) => `
@@ -172,22 +289,40 @@ async function loadRunningLeaders() {
   }
 
   const rows = data || [];
-  const now = Date.now();
-  const weekCutoff = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const monthCutoff = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const weekRange = getChicagoWeekRange();
+  const monthRange = getChicagoMonthRange();
+
+  const weeklyRows = rows.filter((row) => {
+    const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
+    return chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
+  });
+
+  const monthlyRows = rows.filter((row) => {
+    const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
+    return chicagoDate >= monthRange.start && chicagoDate < monthRange.endExclusive;
+  });
+
+  if (el.weeklyRangeLabel) {
+    const weekEndLabel = formatChicagoDateLabel(addDaysToIsoDate(weekRange.endExclusive, -1));
+    el.weeklyRangeLabel.textContent = `${formatChicagoDateLabel(weekRange.start)} – ${weekEndLabel} · Chicago`;
+  }
+
+  if (el.monthlyRangeLabel) {
+    el.monthlyRangeLabel.textContent = `${formatChicagoMonthLabel()} · Chicago`;
+  }
 
   renderLeaderCard(
     el.weeklyLeaderName,
     el.weeklyLeaderDetail,
-    summarizeLeaderboard(rows.filter((r) => r.submitted_at >= weekCutoff)),
-    'No weekly games yet.'
+    summarizeLeaderboard(weeklyRows),
+    'No solved games yet this week.'
   );
 
   renderLeaderCard(
     el.monthlyLeaderName,
     el.monthlyLeaderDetail,
-    summarizeLeaderboard(rows.filter((r) => r.submitted_at >= monthCutoff)),
-    'No monthly games yet.'
+    summarizeLeaderboard(monthlyRows),
+    'No solved games yet this month.'
   );
 
   renderLeaderCard(
@@ -196,6 +331,82 @@ async function loadRunningLeaders() {
     summarizeLeaderboard(rows),
     'No all-time games yet.'
   );
+}
+
+async function loadTodayStats(forcedPuzzle = null) {
+  let puzzleNumber = forcedPuzzle;
+
+  if (!puzzleNumber) {
+    const { data: latestRows, error: latestError } = await supabase
+      .from('submissions')
+      .select('puzzle_number')
+      .order('puzzle_number', { ascending: false })
+      .limit(1);
+
+    if (latestError) {
+      console.error(latestError);
+      return;
+    }
+
+    puzzleNumber = latestRows?.[0]?.puzzle_number || null;
+  }
+
+  state.currentPuzzle = puzzleNumber;
+
+  if (el.todayPuzzleLabel) {
+    el.todayPuzzleLabel.textContent = puzzleNumber ? `Puzzle #${puzzleNumber}` : 'No puzzle submissions yet';
+  }
+
+  if (!puzzleNumber) {
+    if (el.todayStandings) el.todayStandings.textContent = 'No results yet.';
+    if (el.todayPlayerCount) el.todayPlayerCount.textContent = '0';
+    if (el.todayAverage) el.todayAverage.textContent = '—';
+    if (el.todaySolveRate) el.todaySolveRate.textContent = '—';
+    if (el.dailyWinnerName) el.dailyWinnerName.textContent = '—';
+    if (el.dailyWinnerDetail) el.dailyWinnerDetail.textContent = `Waiting on today's solves.`;
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('submission_feed')
+    .select('*')
+    .eq('puzzle_number', puzzleNumber)
+    .order('solved', { ascending: false })
+    .order('score', { ascending: true, nullsFirst: false })
+    .order('submitted_at', { ascending: true });
+
+  if (error) {
+    console.error(error);
+    if (el.todayStandings) el.todayStandings.textContent = error.message;
+    return;
+  }
+
+  const players = data || [];
+  const solved = players.filter((p) => p.solved);
+  const avg = solved.length
+    ? (solved.reduce((sum, p) => sum + p.score, 0) / solved.length).toFixed(2)
+    : '—';
+  const solveRate = players.length
+    ? `${Math.round((solved.length / players.length) * 100)}%`
+    : '—';
+  const winner = solved[0] || null;
+
+  if (el.todayPlayerCount) el.todayPlayerCount.textContent = String(players.length);
+  if (el.todayAverage) el.todayAverage.textContent = avg;
+  if (el.todaySolveRate) el.todaySolveRate.textContent = solveRate;
+  if (el.dailyWinnerName) el.dailyWinnerName.textContent = winner ? winner.display_name : '—';
+  if (el.dailyWinnerDetail) {
+    el.dailyWinnerDetail.textContent = winner
+      ? `${winner.score}/6 · submitted ${new Date(winner.submitted_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+      : `No successful solve yet for puzzle #${puzzleNumber}.`;
+  }
+
+  if (!players.length) {
+    if (el.todayStandings) el.todayStandings.textContent = 'No results yet.';
+    return;
+  }
+
+  renderTodayStandings(players);
 }
 
 async function submitResult(event) {
@@ -212,9 +423,12 @@ async function submitResult(event) {
 
     const parsed = previewParse();
 
-    await ensureProfile(user.id, user.user_metadata?.display_name || user.email.split('@')[0]);
+    await ensureProfile(
+      user.id,
+      user.user_metadata?.display_name || user.email.split('@')[0]
+    );
 
-    const screenshotFile = el.screenshot.files?.[0] || null;
+    const screenshotFile = el.screenshot?.files?.[0] || null;
     const screenshotPath = await uploadScreenshot(user.id, parsed.puzzleNumber, screenshotFile);
 
     const payload = {
@@ -235,8 +449,8 @@ async function submitResult(event) {
 
     if (error) throw error;
 
-    el.submissionForm.reset();
-    el.parsePreview.textContent = 'Parsed result will show here.';
+    el.submissionForm?.reset();
+    if (el.parsePreview) el.parsePreview.textContent = 'Parsed result will show here.';
     showToast('Result submitted.');
 
     await Promise.all([
@@ -249,78 +463,13 @@ async function submitResult(event) {
   }
 }
 
-async function loadTodayStats(forcedPuzzle = null) {
-  let puzzleNumber = forcedPuzzle;
-
-  if (!puzzleNumber) {
-    const { data: latestRows } = await supabase
-      .from('submissions')
-      .select('puzzle_number')
-      .order('puzzle_number', { ascending: false })
-      .limit(1);
-
-    puzzleNumber = latestRows?.[0]?.puzzle_number || null;
-  }
-
-  state.currentPuzzle = puzzleNumber;
-  el.todayPuzzleLabel.textContent = puzzleNumber ? `Puzzle #${puzzleNumber}` : 'No puzzle submissions yet';
-
-  if (!puzzleNumber) {
-    el.todayStandings.textContent = 'No results yet.';
-    el.todayPlayerCount.textContent = '0';
-    el.todayAverage.textContent = '—';
-    el.todaySolveRate.textContent = '—';
-    el.dailyWinnerName.textContent = '—';
-    el.dailyWinnerDetail.textContent = `Waiting on today's solves.`;
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from('submission_feed')
-    .select('*')
-    .eq('puzzle_number', puzzleNumber)
-    .order('solved', { ascending: false })
-    .order('score', { ascending: true, nullsFirst: false })
-    .order('submitted_at', { ascending: true });
-
-  if (error) {
-    el.todayStandings.textContent = error.message;
-    return;
-  }
-
-  const players = data || [];
-  const solved = players.filter((p) => p.solved);
-  const avg = solved.length
-    ? (solved.reduce((sum, p) => sum + p.score, 0) / solved.length).toFixed(2)
-    : '—';
-  const solveRate = players.length
-    ? `${Math.round((solved.length / players.length) * 100)}%`
-    : '—';
-  const winner = solved[0] || null;
-
-  el.todayPlayerCount.textContent = String(players.length);
-  el.todayAverage.textContent = avg;
-  el.todaySolveRate.textContent = solveRate;
-  el.dailyWinnerName.textContent = winner ? winner.display_name : '—';
-  el.dailyWinnerDetail.textContent = winner
-    ? `${winner.score}/6 · submitted ${new Date(winner.submitted_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-    : `No successful solve yet for puzzle #${puzzleNumber}.`;
-
-  if (!players.length) {
-    el.todayStandings.textContent = 'No results yet.';
-    return;
-  }
-
-  renderTodayStandings(players);
-}
-
 async function handleAuthSubmit(event) {
   event.preventDefault();
 
   try {
     const email = el.email.value.trim();
     const password = el.password.value;
-    const displayName = el.displayName.value.trim();
+    const displayName = el.displayName?.value.trim();
 
     await signUp(email, password, displayName);
     showToast('Signed up. Check your email for the confirmation link.');
@@ -330,19 +479,29 @@ async function handleAuthSubmit(event) {
   }
 }
 
+function wirePlayTodayButton() {
+  if (!el.playTodayBtn) return;
+  el.playTodayBtn.href = PLAY_WORDLE_URL;
+  el.playTodayBtn.target = '_blank';
+  el.playTodayBtn.rel = 'noopener noreferrer';
+}
+
 async function init() {
   try {
+    wirePlayTodayButton();
     state.session = await getSession();
     setAuthUi(state.session);
     await Promise.all([loadTodayStats(), loadRunningLeaders()]);
   } catch (error) {
     console.error(error);
-    el.authStatus.textContent = 'Could not initialize app. Check js/config.js';
+    if (el.authStatus) {
+      el.authStatus.textContent = 'Could not initialize app. Check js/config.js';
+    }
   }
 
-  el.authForm.addEventListener('submit', handleAuthSubmit);
+  el.authForm?.addEventListener('submit', handleAuthSubmit);
 
-  el.signInBtn.addEventListener('click', async () => {
+  el.signInBtn?.addEventListener('click', async () => {
     try {
       const result = await signIn(el.email.value.trim(), el.password.value);
       state.session = result.session;
@@ -363,7 +522,7 @@ async function init() {
     }
   });
 
-  el.magicLinkBtn.addEventListener('click', async () => {
+  el.magicLinkBtn?.addEventListener('click', async () => {
     try {
       await sendMagicLink(el.email.value.trim());
       showToast('Magic link sent.');
@@ -373,7 +532,7 @@ async function init() {
     }
   });
 
-  el.signOutBtn.addEventListener('click', async () => {
+  el.signOutBtn?.addEventListener('click', async () => {
     try {
       await signOut();
       state.session = null;
@@ -385,15 +544,15 @@ async function init() {
     }
   });
 
-  el.previewBtn.addEventListener('click', () => {
+  el.previewBtn?.addEventListener('click', () => {
     try {
       previewParse();
     } catch (error) {
-      el.parsePreview.textContent = error.message;
+      if (el.parsePreview) el.parsePreview.textContent = error.message;
     }
   });
 
-  el.submissionForm.addEventListener('submit', submitResult);
+  el.submissionForm?.addEventListener('submit', submitResult);
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
     state.session = session;
