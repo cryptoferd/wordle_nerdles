@@ -292,8 +292,8 @@ async function loadRunningLeaders() {
   });
 
   if (el.weeklyRangeLabel) {
-    const weekEndLabel = formatChicagoDateLabel(addDaysToIsoDate(weekRange.endExclusive, -1));
-    el.weeklyRangeLabel.textContent = `${formatChicagoDateLabel(weekRange.start)} – ${weekEndLabel} · Chicago`;
+    el.weeklyRangeLabel.textContent =
+      `${formatChicagoDateLabel(weekRange.start)} – ${formatChicagoDateLabel(addDaysToIsoDate(weekRange.endExclusive, -1))} · Chicago`;
   }
 
   if (el.monthlyRangeLabel) {
@@ -320,6 +320,11 @@ async function loadRunningLeaders() {
     summarizeLeaderboard(rows),
     'No all-time games yet.'
   );
+
+  console.log('Chicago week range:', weekRange);
+  console.log('Chicago month range:', monthRange);
+  console.log('Weekly rows:', weeklyRows);
+  console.log('Monthly rows:', monthlyRows);
 }
 
 async function loadTodayStats(forcedPuzzle = null) {
