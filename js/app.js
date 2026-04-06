@@ -466,7 +466,7 @@ async function handleAuthSubmit(event) {
     const displayName = el.displayName?.value.trim();
 
     await signUp(email, password, displayName);
-    showToast('Signed up. Check your email for the confirmation link.');
+    showToast('Signed up. You may now login!');
   } catch (error) {
     console.error(error);
     showToast(error.message || 'Sign up failed.');
