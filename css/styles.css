@@ -859,3 +859,61 @@ th { color: var(--muted); font-size: 0.9rem; }
   font-size: 1.05rem;
   min-width: 42px;
 }
+
+
+.ticker-shell {
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  margin: 1rem 0 1.25rem;
+}
+.ticker-track-wrap {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+.ticker-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.25rem;
+  padding: 0.9rem 1.25rem;
+  min-width: max-content;
+  animation: ticker-scroll 30s linear infinite;
+  will-change: transform;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.ticker-link {
+  color: inherit;
+  text-decoration: none;
+}
+.ticker-link:hover {
+  color: inherit;
+}
+.ticker-item .muted-label {
+  color: var(--muted);
+  font-weight: 600;
+}
+@keyframes ticker-scroll {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+@media (max-width: 640px) {
+  .ticker-track {
+    gap: 1.4rem;
+    padding: 0.8rem 1rem;
+    animation-duration: 24s;
+  }
+  .ticker-item {
+    font-size: 0.95rem;
+  }
+}

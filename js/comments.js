@@ -1,7 +1,7 @@
 import { supabase } from './supabase-client.js';
 
 const DEFAULT_AVATAR = './assets/default-avatar.svg';
-const REACTIONS = ['👍','💚','🖕','🤘','🧠','🤣','😉','😘','😳','😏','😒','😤','🤬','🤯','🤓','💩','💯','💪','💀','🔥','🏆','🧨','‼️','⁉️','🟩','🟨','⬛'];
+const REACTIONS = ['👍','💚','🖕','🤘','🧠','🤣','😉','🤬','🤓','💀','🟩','🟨','⬛'];
 
 function escapeHtml(value) {
   return String(value ?? '')

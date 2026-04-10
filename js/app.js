@@ -41,6 +41,7 @@ const el = {
   alltimeLeaderDetail: document.getElementById('alltime-leader-detail'),
   weeklyRangeLabel: document.getElementById('weekly-range-label'),
   monthlyRangeLabel: document.getElementById('monthly-range-label'),
+  weeklyTickerTrack: document.getElementById('weekly-ticker-track'),
   playTodayBtn: document.getElementById('play-today-btn'),
   toast: document.getElementById('toast'),
 };
@@ -212,9 +213,15 @@ async function getAvatarUrlMap(rows) {
   return map;
 }
 
-function summarizeLeaderboard(rows) {
+
+function getUniquePuzzleCount(rows) {
+  return new Set((rows || []).map((row) => row.puzzle_number)).size;
+}
+
+function summarizeTopPlayers(rows) {
   const solvedRows = (rows || []).filter((row) => row.solved && Number.isFinite(row.score));
-  if (!solvedRows.length) return null;
+  const requiredPuzzleCount = getUniquePuzzleCount(rows);
+  if (!solvedRows.length || !requiredPuzzleCount) return [];
 
   const byUser = new Map();
 
@@ -234,7 +241,111 @@ function summarizeLeaderboard(rows) {
     byUser.set(row.user_id, current);
   }
 
+  return [...byUser.values()]
+    .filter((row) => row.games >= requiredPuzzleCount)
+    .map((row) => ({
+      ...row,
+      average: row.totalScore / row.games,
+    }))
+    .sort((a, b) => {
+      if (a.average !== b.average) return a.average - b.average;
+      if (a.games !== b.games) return b.games - a.games;
+      if (a.best !== b.best) return a.best - b.best;
+      return a.display_name.localeCompare(b.display_name);
+    });
+}
+
+function renderWeeklyTicker(currentTop3, previousWinner, requiredPuzzleCount) {
+  if (!el.weeklyTickerTrack) return;
+
+  const parts = [];
+
+  if (currentTop3[0]) {
+    parts.push(`
+      <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[0].user_id)}">
+        <span class="ticker-item">
+          <span>🥇</span>
+          <span class="muted-label">This week:</span>
+          <span>${escapeHtml(currentTop3[0].display_name)}</span>
+          <span>(${currentTop3[0].average.toFixed(2)})</span>
+        </span>
+      </a>
+    `);
+  }
+
+  if (currentTop3[1]) {
+    parts.push(`
+      <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[1].user_id)}">
+        <span class="ticker-item">
+          <span>🥈</span>
+          <span class="muted-label">This week:</span>
+          <span>${escapeHtml(currentTop3[1].display_name)}</span>
+          <span>(${currentTop3[1].average.toFixed(2)})</span>
+        </span>
+      </a>
+    `);
+  }
+
+  if (currentTop3[2]) {
+    parts.push(`
+      <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[2].user_id)}">
+        <span class="ticker-item">
+          <span>🥉</span>
+          <span class="muted-label">This week:</span>
+          <span>${escapeHtml(currentTop3[2].display_name)}</span>
+          <span>(${currentTop3[2].average.toFixed(2)})</span>
+        </span>
+      </a>
+    `);
+  }
+
+  if (previousWinner) {
+    parts.push(`
+      <a class="ticker-link" href="profile.html?user=${encodeURIComponent(previousWinner.user_id)}">
+        <span class="ticker-item">
+          <span>🏆</span>
+          <span class="muted-label">Last week:</span>
+          <span>${escapeHtml(previousWinner.display_name)}</span>
+          <span>(${previousWinner.average.toFixed(2)})</span>
+        </span>
+      </a>
+    `);
+  }
+
+  if (!parts.length) {
+    el.weeklyTickerTrack.innerHTML = `<span class="ticker-item">Need ${requiredPuzzleCount || 0} completed weekly plays before standings appear.</span>`;
+    return;
+  }
+
+  el.weeklyTickerTrack.innerHTML = [...parts, ...parts].join('');
+}
+
+function summarizeLeaderboard(rows) {
+  const solvedRows = (rows || []).filter((row) => row.solved && Number.isFinite(row.score));
+  const requiredPuzzleCount = getUniquePuzzleCount(rows);
+  if (!solvedRows.length || !requiredPuzzleCount) return null;
+
+  const byUser = new Map();
+
+  for (const row of solvedRows) {
+    const current = byUser.get(row.user_id) || {
+      user_id: row.user_id,
+      display_name: row.display_name || 'Unknown',
+      games: 0,
+      totalScore: 0,
+      best: null,
+      wins: 0,
+    };
+
+    current.games += 1;
+    current.totalScore += row.score;
+    current.best = current.best == null ? row.score : Math.min(current.best, row.score);
+
+    byUser.set(row.user_id, current);
+  }
+
   const leaderboard = [...byUser.values()]
+    .filter((row) => row.games >= requiredPuzzleCount)
     .map((row) => ({
       ...row,
       average: row.totalScore / row.games,
@@ -246,9 +357,12 @@ function summarizeLeaderboard(rows) {
       return a.display_name.localeCompare(b.display_name);
     });
 
+  if (!leaderboard.length) return null;
+
   return {
     leaderboard,
     leader: leaderboard[0],
+    requiredPuzzleCount,
   };
 }
 
@@ -355,7 +469,7 @@ async function renderTodayStandings(players) {
 async function loadRunningLeaders() {
   const { data, error } = await supabase
     .from('submission_feed')
-    .select('user_id, display_name, avatar_url, catchphrase, score, solved, submitted_at');
+    .select('user_id, puzzle_number, display_name, avatar_url, catchphrase, score, solved, submitted_at');
 
   if (error) {
     console.error(error);
@@ -366,9 +480,17 @@ async function loadRunningLeaders() {
   const weekRange = getChicagoWeekRange();
   const monthRange = getChicagoMonthRange();
 
+  const previousWeekStart = addDaysToIsoDate(weekRange.start, -7);
+  const previousWeekEndExclusive = weekRange.start;
+
   const weeklyRows = rows.filter((row) => {
     const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
     return chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
+  });
+
+  const previousWeeklyRows = rows.filter((row) => {
+    const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
+    return chicagoDate >= previousWeekStart && chicagoDate < previousWeekEndExclusive;
   });
 
   const monthlyRows = rows.filter((row) => {
@@ -385,26 +507,40 @@ async function loadRunningLeaders() {
     el.monthlyRangeLabel.textContent = `${formatChicagoMonthLabel()} · Chicago`;
   }
 
+  const weeklySummary = summarizeLeaderboard(weeklyRows);
+  const monthlySummary = summarizeLeaderboard(monthlyRows);
+  const allTimeSummary = summarizeLeaderboard(rows);
+  const previousWeekSummary = summarizeLeaderboard(previousWeeklyRows);
+
   renderLeaderCard(
     el.weeklyLeaderName,
     el.weeklyLeaderDetail,
-    summarizeLeaderboard(weeklyRows),
-    'No solved games yet this week.'
+    weeklySummary,
+    weeklyRows.length
+      ? `Need all ${getUniquePuzzleCount(weeklyRows)} weekly puzzles played to qualify.`
+      : 'No solved games yet this week.'
   );
 
   renderLeaderCard(
     el.monthlyLeaderName,
     el.monthlyLeaderDetail,
-    summarizeLeaderboard(monthlyRows),
-    'No solved games yet this month.'
+    monthlySummary,
+    monthlyRows.length
+      ? `Need all ${getUniquePuzzleCount(monthlyRows)} monthly puzzles played to qualify.`
+      : 'No solved games yet this month.'
   );
 
   renderLeaderCard(
     el.alltimeLeaderName,
     el.alltimeLeaderDetail,
-    summarizeLeaderboard(rows),
-    'No all-time games yet.'
+    allTimeSummary,
+    rows.length ? `Need all ${getUniquePuzzleCount(rows)} tracked puzzles played to qualify.` : 'No all-time games yet.'
   );
+
+  const weeklyTop3 = summarizeTopPlayers(weeklyRows).slice(0, 3);
+  const previousWeekWinner = previousWeekSummary?.leader || null;
+
+  renderWeeklyTicker(weeklyTop3, previousWeekWinner, getUniquePuzzleCount(weeklyRows));
 }
 
 async function loadTodayStats(forcedPuzzle = null) {

@@ -90,3 +90,10 @@ After updating, re-run `sql/schema.sql` and create a private storage bucket name
 - Added after-the-fact screenshot uploads for your own submissions.
 - Added comment reactions with visible counts and hoverable liker names.
 - Supported reactions: 👍 💚 🖕 🤘 🧠 🤣 😉 🤬 🤓 💀 🟩 🟨 ⬛
+
+
+## v9 update
+- Added a scrolling weekly banner on the home page with clickable player links.
+- Banner pauses on hover.
+- Shows current weekly top 3 and previous weekly winner.
+- Weekly, monthly, and all-time standings now require a player to have completed every tracked puzzle in that period to qualify.

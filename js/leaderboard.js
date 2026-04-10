@@ -89,6 +89,10 @@ function formatChicagoMonthLabel(date = new Date()) {
   }).format(date);
 }
 
+function getUniquePuzzleCount(rows) {
+  return new Set((rows || []).map((row) => row.puzzle_number)).size;
+}
+
 async function getAvatarUrlMap(rows) {
   const uniquePaths = [...new Set((rows || []).map((row) => row.avatar_url).filter(Boolean))];
   const map = new Map();
@@ -102,7 +106,9 @@ async function getAvatarUrlMap(rows) {
 }
 
 function aggregateSolvedRows(rows) {
+  const requiredPuzzleCount = getUniquePuzzleCount(rows);
   const byUser = new Map();
+
   for (const row of rows) {
     if (!row.solved || !Number.isFinite(row.score)) continue;
     const current = byUser.get(row.user_id) || {
@@ -125,6 +131,7 @@ function aggregateSolvedRows(rows) {
   }
 
   return [...byUser.values()]
+    .filter((row) => row.games >= requiredPuzzleCount)
     .map((row) => ({
       ...row,
       average: row.games ? row.totalScore / row.games : null,
@@ -140,6 +147,7 @@ function aggregateSolvedRows(rows) {
 function renderSummaryCards(rows, title) {
   const solved = rows.filter((row) => row.solved && Number.isFinite(row.score));
   const leaderboard = aggregateSolvedRows(rows);
+  const requiredPuzzleCount = getUniquePuzzleCount(rows);
   const leader = leaderboard[0];
   const avg = solved.length ? (solved.reduce((sum, row) => sum + row.score, 0) / solved.length).toFixed(2) : '—';
 
@@ -157,7 +165,7 @@ function renderSummaryCards(rows, title) {
     <article class="summary-card">
       <span class="summary-label">Solved games</span>
       <strong>${solved.length}</strong>
-      <p class="muted">Average score ${avg}</p>
+      <p class="muted">Average score ${avg}${requiredPuzzleCount ? ` · requires ${requiredPuzzleCount}/${requiredPuzzleCount} plays` : ''}</p>
     </article>
     <article class="summary-card">
       <span class="summary-label">Top best</span>
