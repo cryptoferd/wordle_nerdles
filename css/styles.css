@@ -890,10 +890,11 @@ th { color: var(--muted); font-size: 0.9rem; }
   gap: 2.25rem;
   padding: 0.9rem 1.25rem;
   width: max-content;
-  min-width: 200%;
-  animation: ticker-scroll 30s linear infinite;
+  min-width: 300%;
+  animation: ticker-scroll 42s linear infinite;
   will-change: transform;
 }
+
 .ticker-track:hover {
   animation-play-state: paused;
 }
@@ -922,15 +923,17 @@ th { color: var(--muted); font-size: 0.9rem; }
 }
 
 @keyframes ticker-scroll {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
+  0% { transform: translateX(-5%); }
+  100% { transform: translateX(-38.333%); }
 }
 @media (max-width: 640px) {
   .ticker-track {
     gap: 1.4rem;
     padding: 0.8rem 1rem;
-    animation-duration: 24s;
+    min-width: 300%;
+    animation-duration: 34s;
   }
+
   .ticker-item {
     font-size: 0.95rem;
   }
