@@ -70,6 +70,11 @@ a:hover { color: white; }
   padding: 20px;
 }
 
+.header-ticker {
+  margin-top: 0.9rem;
+  margin-bottom: 0;
+}
+
 .header-ticker .ticker-track {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
