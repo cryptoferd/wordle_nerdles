@@ -286,3 +286,59 @@ on public.submission_comments
 for delete
 to authenticated
 using (auth.uid() = user_id);
+
+
+-- =====================================
+-- COMMENT REACTIONS
+-- =====================================
+
+create table if not exists public.comment_reactions (
+  id uuid primary key default gen_random_uuid(),
+  comment_id uuid not null references public.submission_comments(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz not null default now(),
+  constraint comment_reactions_one_per_user_per_emoji unique (comment_id, user_id, emoji),
+  constraint comment_reactions_emoji_check check (emoji in ('👍','💚','🖕','🤘','🧠','🤣','😉','🤬','🤓','💀','🟩','🟨','⬛'))
+);
+
+create index if not exists comment_reactions_comment_idx
+  on public.comment_reactions (comment_id, created_at);
+
+drop view if exists public.comment_reaction_feed;
+
+create view public.comment_reaction_feed as
+select
+  r.id,
+  r.comment_id,
+  r.user_id,
+  r.emoji,
+  r.created_at,
+  p.display_name
+from public.comment_reactions r
+join public.profiles p
+  on p.id = r.user_id;
+
+alter table public.comment_reactions enable row level security;
+
+drop policy if exists "comment_reactions_select_authenticated" on public.comment_reactions;
+drop policy if exists "comment_reactions_insert_own" on public.comment_reactions;
+drop policy if exists "comment_reactions_delete_own" on public.comment_reactions;
+
+create policy "comment_reactions_select_authenticated"
+on public.comment_reactions
+for select
+to authenticated
+using (true);
+
+create policy "comment_reactions_insert_own"
+on public.comment_reactions
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+create policy "comment_reactions_delete_own"
+on public.comment_reactions
+for delete
+to authenticated
+using (auth.uid() = user_id);

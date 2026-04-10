@@ -1,7 +1,7 @@
 import { supabase } from './supabase-client.js';
 import { renderMiniGrid } from './parser.js';
 import { getSession } from './auth.js';
-import { mountComments } from './comments.js';
+import { mountComments, attachScreenshotToSubmission } from './comments.js';
 
 const wrap = document.getElementById('daily-results');
 const puzzleInput = document.getElementById('puzzle-input');
@@ -124,8 +124,9 @@ async function loadDailyResults(puzzleNumber) {
   const cards = await Promise.all(rows.map(async (row, index) => {
     const avatarSrc = avatarMap.get(row.avatar_url) || DEFAULT_AVATAR;
     let screenshotHtml = '';
+    const isOwn = session?.user?.id === row.user_id;
     if (row.screenshot_path) {
-      if (unlocked) {
+      if (unlocked || isOwn) {
         const signedUrl = await getSignedScreenshotUrl(row.screenshot_path);
         screenshotHtml = signedUrl
           ? `<div class="screenshot-card"><img src="${signedUrl}" alt="${escapeHtml(row.display_name)} screenshot" data-fullsrc="${signedUrl}" /></div>`
@@ -133,6 +134,14 @@ async function loadDailyResults(puzzleNumber) {
       } else {
         screenshotHtml = `<div class="screenshot-locked">Submit this puzzle to unlock screenshots.</div>`;
       }
+    } else if (isOwn) {
+      screenshotHtml = `
+        <div class="screenshot-uploader-inline">
+          <label class="inline-upload-label">Forgot your screenshot?</label>
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif" data-add-screenshot-input="${row.id}">
+          <button type="button" class="ghost-btn" data-add-screenshot-btn="${row.id}">Add screenshot</button>
+        </div>
+      `;
     }
 
     return `
@@ -152,6 +161,25 @@ async function loadDailyResults(puzzleNumber) {
 
   wrap.querySelectorAll('img[data-fullsrc]').forEach((img) => {
     img.addEventListener('click', () => openModal(img.dataset.fullsrc));
+  });
+
+  wrap.querySelectorAll('[data-add-screenshot-btn]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const submissionId = button.dataset.addScreenshotBtn;
+      const input = wrap.querySelector(`[data-add-screenshot-input="${submissionId}"]`);
+      const file = input?.files?.[0];
+      const submission = rows.find((entry) => entry.id === submissionId);
+
+      if (!submission) return;
+
+      try {
+        await attachScreenshotToSubmission(submission, file);
+        await loadDailyResults(puzzleNumber);
+      } catch (error) {
+        console.error(error);
+        alert(error.message || 'Could not add screenshot.');
+      }
+    });
   });
 
   await mountComments({

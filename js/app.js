@@ -1,7 +1,7 @@
 import { supabase } from './supabase-client.js';
 import { parseWordleShare, renderMiniGrid } from './parser.js';
 import { getSession, signIn, signOut, signUp, sendMagicLink, ensureProfile } from './auth.js';
-import { mountComments } from './comments.js';
+import { mountComments, attachScreenshotToSubmission, getSignedScreenshotUrl } from './comments.js';
 
 const CHICAGO_TZ = 'America/Chicago';
 const PLAY_WORDLE_URL = 'https://www.nytimes.com/games/wordle/index.html';
@@ -270,35 +270,78 @@ async function renderTodayStandings(players) {
   if (!el.todayStandings) return;
 
   const avatarMap = await getAvatarUrlMap(players);
+  const cards = await Promise.all(players.map(async (player, index) => {
+    const avatarSrc = avatarMap.get(player.avatar_url) || DEFAULT_AVATAR;
+    const isOwn = state.session?.user?.id === player.user_id;
+    let screenshotHtml = '';
 
-  el.todayStandings.innerHTML = `
-    <div class="standings-list">
-      ${players.map((player, index) => {
-        const avatarSrc = avatarMap.get(player.avatar_url) || DEFAULT_AVATAR;
-        return `
-        <article class="player-card" data-submission-id="${player.id}">
-          <div class="player-row">
-            <a class="player-link" href="profile.html?user=${encodeURIComponent(player.user_id)}">
-              <div class="player-row-top">
-                <img class="player-avatar circular" src="${avatarSrc}" alt="${escapeHtml(player.display_name || 'Unknown')} profile picture">
-                <div class="player-meta">
-                  <div class="player-name-line">
-                    <strong>${index === 0 && player.solved ? '👑 ' : ''}${escapeHtml(player.display_name || 'Unknown')}</strong>
-                  </div>
-                  ${player.catchphrase ? `<div class="catchphrase">“${escapeHtml(player.catchphrase)}”</div>` : ''}
-                  <span class="muted">${new Date(player.submitted_at).toLocaleString()}</span>
+    if (player.screenshot_path) {
+      const signedUrl = await getSignedScreenshotUrl(player.screenshot_path);
+      screenshotHtml = signedUrl
+        ? `<div class="screenshot-card"><img src="${signedUrl}" alt="${escapeHtml(player.display_name || 'Unknown')} screenshot" data-fullsrc="${signedUrl}" /></div>`
+        : `<div class="screenshot-locked">Screenshot unavailable.</div>`;
+    } else if (isOwn) {
+      screenshotHtml = `
+        <div class="screenshot-uploader-inline">
+          <label class="inline-upload-label">Forgot your screenshot?</label>
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif" data-add-screenshot-input="${player.id}">
+          <button type="button" class="ghost-btn" data-add-screenshot-btn="${player.id}">Add screenshot</button>
+        </div>
+      `;
+    }
+
+    return `
+      <article class="player-card" data-submission-id="${player.id}">
+        <div class="player-row">
+          <a class="player-link" href="profile.html?user=${encodeURIComponent(player.user_id)}">
+            <div class="player-row-top">
+              <img class="player-avatar circular" src="${avatarSrc}" alt="${escapeHtml(player.display_name || 'Unknown')} profile picture">
+              <div class="player-meta">
+                <div class="player-name-line">
+                  <strong>${index === 0 && player.solved ? '👑 ' : ''}${escapeHtml(player.display_name || 'Unknown')}</strong>
                 </div>
+                ${player.catchphrase ? `<div class="catchphrase">“${escapeHtml(player.catchphrase)}”</div>` : ''}
+                <span class="muted">${new Date(player.submitted_at).toLocaleString()}</span>
               </div>
-            </a>
-            <div class="score-pill">${player.solved ? `${player.score}/6` : 'X/6'}</div>
-          </div>
-          ${index === 0 && player.solved ? `<div class="winner-banner">Daily winner — first best solve for puzzle #${player.puzzle_number}</div>` : ''}
-          <div class="mini-grid">${renderMiniGrid(player.rows_json || [])}</div>
-          <div class="submission-comments" data-comments-host="${player.id}"></div>
-        </article>
-      `}).join('')}
-    </div>
-  `;
+            </div>
+          </a>
+          <div class="score-pill">${player.solved ? `${player.score}/6` : 'X/6'}</div>
+        </div>
+        ${index === 0 && player.solved ? `<div class="winner-banner">Daily winner — first best solve for puzzle #${player.puzzle_number}</div>` : ''}
+        <div class="mini-grid">${renderMiniGrid(player.rows_json || [])}</div>
+        ${screenshotHtml}
+        <div class="submission-comments" data-comments-host="${player.id}"></div>
+      </article>
+    `;
+  }));
+
+  el.todayStandings.innerHTML = `<div class="standings-list">${cards.join('')}</div>`;
+
+  el.todayStandings.querySelectorAll('img[data-fullsrc]').forEach((img) => {
+    img.addEventListener('click', () => {
+      window.open(img.dataset.fullsrc, '_blank', 'noopener,noreferrer');
+    });
+  });
+
+  el.todayStandings.querySelectorAll('[data-add-screenshot-btn]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const submissionId = button.dataset.addScreenshotBtn;
+      const input = el.todayStandings.querySelector(`[data-add-screenshot-input="${submissionId}"]`);
+      const file = input?.files?.[0];
+      const submission = players.find((row) => row.id === submissionId);
+
+      if (!submission) return;
+
+      try {
+        await attachScreenshotToSubmission(submission, file);
+        showToast('Screenshot added.');
+        await loadTodayStats(state.currentPuzzle);
+      } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Could not add screenshot.');
+      }
+    });
+  });
 
   await mountComments({
     container: el.todayStandings,

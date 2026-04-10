@@ -84,3 +84,9 @@ After updating, re-run `sql/schema.sql` and create a private storage bucket name
 - Added nested replies under comments.
 - Comments appear on the home page and daily archive page under each submission.
 - Users can delete their own comments.
+
+
+## v8 update
+- Added after-the-fact screenshot uploads for your own submissions.
+- Added comment reactions with visible counts and hoverable liker names.
+- Supported reactions: 👍 💚 🖕 🤘 🧠 🤣 😉 🤬 🤓 💀 🟩 🟨 ⬛

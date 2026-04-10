@@ -814,3 +814,48 @@ th { color: var(--muted); font-size: 0.9rem; }
 .comments-signin-hint {
   color: var(--muted);
 }
+
+
+.screenshot-uploader-inline {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.02);
+}
+.inline-upload-label {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.reaction-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.reaction-chip,
+.reaction-picker-toggle,
+.reaction-option {
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+.reaction-chip.active {
+  border-color: rgba(232, 194, 40, 0.55);
+  background: rgba(232, 194, 40, 0.12);
+}
+.reaction-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.reaction-option {
+  font-size: 1.05rem;
+  min-width: 42px;
+}

@@ -1,6 +1,7 @@
 import { supabase } from './supabase-client.js';
 
 const DEFAULT_AVATAR = './assets/default-avatar.svg';
+const REACTIONS = ['👍','💚','🖕','🤘','🧠','🤣','😉','🤬','🤓','💀','🟩','🟨','⬛'];
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -11,7 +12,69 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-async function getAvatarUrlMap(comments) {
+export function showSimpleToast(message) {
+  const toast = document.getElementById('toast');
+  if (!toast) {
+    if (message) console.log(message);
+    return;
+  }
+  toast.textContent = message;
+  toast.classList.remove('hidden');
+  clearTimeout(showSimpleToast._timer);
+  showSimpleToast._timer = setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+export async function getSignedScreenshotUrl(path) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage
+    .from('screenshots')
+    .createSignedUrl(path, 60 * 10);
+  if (error) return null;
+  return data?.signedUrl || null;
+}
+
+export async function uploadSubmissionScreenshot(userId, puzzleNumber, file) {
+  if (!file) throw new Error('Choose a screenshot first.');
+
+  const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif'];
+  if (file.type && !allowed.includes(file.type)) {
+    throw new Error('Use PNG, JPG, WebP, or HEIC.');
+  }
+
+  const extension = (file.name.split('.').pop() || 'png').toLowerCase();
+  const path = `${userId}/${puzzleNumber}-${Date.now()}.${extension}`;
+
+  const { error } = await supabase.storage
+    .from('screenshots')
+    .upload(path, file, { upsert: false });
+
+  if (error) throw error;
+  return path;
+}
+
+export async function attachScreenshotToSubmission(submission, file) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) throw userError;
+  if (!user) throw new Error('You must be signed in.');
+  if (user.id !== submission.user_id) throw new Error('You can only update your own submission.');
+
+  const screenshotPath = await uploadSubmissionScreenshot(user.id, submission.puzzle_number, file);
+
+  const { error } = await supabase
+    .from('submissions')
+    .update({ screenshot_path: screenshotPath })
+    .eq('id', submission.id)
+    .eq('user_id', user.id);
+
+  if (error) throw error;
+  return screenshotPath;
+}
+
+async function getAvatarUrlMapFromComments(comments) {
   const paths = [...new Set((comments || []).map((comment) => comment.avatar_url).filter(Boolean))];
   const map = new Map();
 
@@ -54,21 +117,74 @@ function buildTree(comments) {
 
   function sortBranch(nodes) {
     nodes.sort(sortFn);
-    for (const node of nodes) {
-      sortBranch(node.replies);
-    }
+    for (const node of nodes) sortBranch(node.replies);
   }
 
   sortBranch(roots);
   return roots;
 }
 
-function renderCommentNode(comment, avatarMap, sessionUserId) {
+function aggregateReactions(reactions, sessionUserId) {
+  const byEmoji = new Map();
+
+  for (const reaction of reactions || []) {
+    const current = byEmoji.get(reaction.emoji) || {
+      emoji: reaction.emoji,
+      count: 0,
+      users: [],
+      likedByMe: false,
+    };
+    current.count += 1;
+    current.users.push(reaction.display_name || 'Unknown');
+    if (sessionUserId && reaction.user_id === sessionUserId) current.likedByMe = true;
+    byEmoji.set(reaction.emoji, current);
+  }
+
+  return [...byEmoji.values()].sort((a, b) => REACTIONS.indexOf(a.emoji) - REACTIONS.indexOf(b.emoji));
+}
+
+function reactionSummaryHtml(commentId, reactions, sessionUserId) {
+  const grouped = aggregateReactions(reactions, sessionUserId);
+
+  return `
+    <div class="reaction-summary">
+      ${grouped.length
+        ? grouped.map((item) => `
+          <button
+            type="button"
+            class="reaction-chip ${item.likedByMe ? 'active' : ''}"
+            data-toggle-reaction="${commentId}"
+            data-emoji="${item.emoji}"
+            title="${escapeHtml(item.users.join(', '))}"
+          >
+            <span>${item.emoji}</span>
+            <span>${item.count}</span>
+          </button>
+        `).join('')
+        : ''}
+      <button type="button" class="reaction-picker-toggle" data-open-reaction-picker="${commentId}">Add reaction</button>
+    </div>
+    <div class="reaction-picker hidden" data-reaction-picker="${commentId}">
+      ${REACTIONS.map((emoji) => `
+        <button
+          type="button"
+          class="reaction-option"
+          data-toggle-reaction="${commentId}"
+          data-emoji="${emoji}"
+          title="React ${emoji}"
+        >${emoji}</button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderCommentNode(comment, avatarMap, sessionUserId, reactionsByCommentId) {
   const isOwn = sessionUserId && comment.user_id === sessionUserId;
   const avatarSrc = avatarMap.get(comment.avatar_url) || DEFAULT_AVATAR;
   const catchphrase = comment.catchphrase
     ? `<div class="comment-catchphrase">“${escapeHtml(comment.catchphrase)}”</div>`
     : '';
+  const commentReactions = reactionsByCommentId.get(comment.id) || [];
 
   return `
     <article class="comment-item" data-comment-id="${comment.id}">
@@ -89,6 +205,8 @@ function renderCommentNode(comment, avatarMap, sessionUserId) {
             <div class="comment-text">${escapeHtml(comment.body)}</div>
           </div>
 
+          ${reactionSummaryHtml(comment.id, commentReactions, sessionUserId)}
+
           <div class="comment-actions">
             <button type="button" class="comment-action-btn" data-reply-to="${comment.id}">Reply</button>
             ${isOwn ? `<button type="button" class="comment-action-btn danger-link" data-delete-comment="${comment.id}">Delete</button>` : ''}
@@ -98,7 +216,7 @@ function renderCommentNode(comment, avatarMap, sessionUserId) {
 
           ${comment.replies?.length ? `
             <div class="comment-replies">
-              ${comment.replies.map((reply) => renderCommentNode(reply, avatarMap, sessionUserId)).join('')}
+              ${comment.replies.map((reply) => renderCommentNode(reply, avatarMap, sessionUserId, reactionsByCommentId)).join('')}
             </div>
           ` : ''}
         </div>
@@ -127,13 +245,21 @@ function renderComposer(submissionId, replyToId = '') {
 
 async function fetchCommentsForSubmissionIds(submissionIds) {
   if (!submissionIds.length) return [];
-
   const { data, error } = await supabase
     .from('comment_feed')
     .select('*')
     .in('submission_id', submissionIds)
     .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
 
+async function fetchReactionsForCommentIds(commentIds) {
+  if (!commentIds.length) return [];
+  const { data, error } = await supabase
+    .from('comment_reaction_feed')
+    .select('*')
+    .in('comment_id', commentIds);
   if (error) throw error;
   return data || [];
 }
@@ -168,22 +294,67 @@ async function deleteComment(commentId) {
   if (error) throw error;
 }
 
+async function toggleReaction(commentId, emoji) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) throw userError;
+  if (!user) throw new Error('You must be signed in to react.');
+
+  const { data: existing, error: existingError } = await supabase
+    .from('comment_reactions')
+    .select('id')
+    .eq('comment_id', commentId)
+    .eq('user_id', user.id)
+    .eq('emoji', emoji)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from('comment_reactions')
+      .delete()
+      .eq('id', existing.id);
+    if (error) throw error;
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('comment_reactions')
+    .insert({
+      comment_id: commentId,
+      user_id: user.id,
+      emoji,
+    });
+  if (error) throw error;
+  return true;
+}
+
 export async function mountComments({ container, submissions, session, onError, onSuccess }) {
   if (!container) return;
 
   const submissionIds = submissions.map((row) => row.id).filter(Boolean);
   const comments = await fetchCommentsForSubmissionIds(submissionIds);
-  const avatarMap = await getAvatarUrlMap(comments);
+  const commentIds = comments.map((comment) => comment.id);
+  const reactions = await fetchReactionsForCommentIds(commentIds);
+  const reactionsByCommentId = new Map();
+  const avatarMap = await getAvatarUrlMapFromComments(comments);
   const commentsBySubmission = new Map();
+
+  for (const reaction of reactions) {
+    if (!reactionsByCommentId.has(reaction.comment_id)) reactionsByCommentId.set(reaction.comment_id, []);
+    reactionsByCommentId.get(reaction.comment_id).push(reaction);
+  }
 
   for (const submissionId of submissionIds) {
     commentsBySubmission.set(submissionId, []);
   }
 
   for (const comment of comments) {
-    if (!commentsBySubmission.has(comment.submission_id)) {
-      commentsBySubmission.set(comment.submission_id, []);
-    }
+    if (!commentsBySubmission.has(comment.submission_id)) commentsBySubmission.set(comment.submission_id, []);
     commentsBySubmission.get(comment.submission_id).push(comment);
   }
 
@@ -205,7 +376,7 @@ export async function mountComments({ container, submissions, session, onError, 
 
         <div class="comments-thread">
           ${tree.length
-            ? tree.map((comment) => renderCommentNode(comment, avatarMap, session?.user?.id || null)).join('')
+            ? tree.map((comment) => renderCommentNode(comment, avatarMap, session?.user?.id || null, reactionsByCommentId)).join('')
             : `<div class="comments-empty muted">No comments yet. Be the first.</div>`}
         </div>
       </div>
@@ -287,6 +458,34 @@ export async function mountComments({ container, submissions, session, onError, 
       try {
         await deleteComment(commentId);
         if (typeof onSuccess === 'function') onSuccess('Comment deleted.');
+        await mountComments({ container, submissions, session, onError, onSuccess });
+      } catch (error) {
+        console.error(error);
+        if (typeof onError === 'function') onError(error);
+      }
+    });
+  });
+
+  container.querySelectorAll('[data-open-reaction-picker]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const commentId = button.dataset.openReactionPicker;
+      const picker = container.querySelector(`[data-reaction-picker="${commentId}"]`);
+      if (!picker) return;
+
+      container.querySelectorAll('.reaction-picker').forEach((node) => {
+        if (node !== picker) node.classList.add('hidden');
+      });
+      picker.classList.toggle('hidden');
+    });
+  });
+
+  container.querySelectorAll('[data-toggle-reaction]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const commentId = button.dataset.toggleReaction;
+      const emoji = button.dataset.emoji;
+      try {
+        await toggleReaction(commentId, emoji);
+        if (typeof onSuccess === 'function') onSuccess(`Reaction ${emoji} updated.`);
         await mountComments({ container, submissions, session, onError, onSuccess });
       } catch (error) {
         console.error(error);
