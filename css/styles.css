@@ -685,3 +685,132 @@ th { color: var(--muted); font-size: 0.9rem; }
     grid-template-columns: 1fr;
   }
 }
+
+
+.submission-comments {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.comments-shell {
+  display: grid;
+  gap: 12px;
+}
+.comments-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.comments-composer,
+.reply-form-slot {
+  display: grid;
+  gap: 8px;
+}
+.comment-form {
+  display: grid;
+  gap: 8px;
+}
+.comment-textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.25);
+  color: var(--text);
+  font: inherit;
+}
+.comment-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ghost-btn,
+.comment-action-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+.comment-action-btn {
+  padding: 4px 10px;
+  border: 0;
+}
+.cancel-reply-btn {
+  border-style: dashed;
+}
+.danger-link {
+  color: #ff9898;
+}
+.comments-thread {
+  display: grid;
+  gap: 12px;
+}
+.comment-item {
+  display: grid;
+  gap: 8px;
+}
+.comment-main {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.comment-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: #121213;
+}
+.comment-body-wrap {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.comment-bubble {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 10px 12px;
+}
+.comment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.comment-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.comment-catchphrase {
+  margin: 4px 0 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-style: italic;
+}
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  padding-left: 4px;
+}
+.comment-replies {
+  margin-left: 16px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(255,255,255,0.08);
+  display: grid;
+  gap: 12px;
+}
+.comments-empty,
+.comments-signin-hint {
+  color: var(--muted);
+}

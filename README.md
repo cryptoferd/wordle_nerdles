@@ -77,3 +77,10 @@ After updating, re-run `sql/schema.sql` and create a private storage bucket name
 - Player names and avatars now link to public profile pages.
 - `profile.html?user=USER_ID` shows a player's public stats and recent submissions.
 - Your own profile remains editable; other profiles are view-only.
+
+
+## v7 update
+- Added submission comments that stay attached to each result.
+- Added nested replies under comments.
+- Comments appear on the home page and daily archive page under each submission.
+- Users can delete their own comments.

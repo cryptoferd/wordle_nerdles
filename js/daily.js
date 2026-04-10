@@ -1,6 +1,7 @@
 import { supabase } from './supabase-client.js';
 import { renderMiniGrid } from './parser.js';
 import { getSession } from './auth.js';
+import { mountComments } from './comments.js';
 
 const wrap = document.getElementById('daily-results');
 const puzzleInput = document.getElementById('puzzle-input');
@@ -142,6 +143,7 @@ async function loadDailyResults(puzzleNumber) {
         </div>
         <div class="mini-grid">${renderMiniGrid(row.rows_json || [])}</div>
         ${screenshotHtml}
+        <div class="submission-comments" data-comments-host="${row.id}"></div>
       </article>
     `;
   }));
@@ -150,6 +152,14 @@ async function loadDailyResults(puzzleNumber) {
 
   wrap.querySelectorAll('img[data-fullsrc]').forEach((img) => {
     img.addEventListener('click', () => openModal(img.dataset.fullsrc));
+  });
+
+  await mountComments({
+    container: wrap,
+    submissions: rows,
+    session,
+    onError: (error) => alert(error.message || 'Could not load comments.'),
+    onSuccess: () => loadDailyResults(puzzleNumber),
   });
 }
 

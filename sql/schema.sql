@@ -224,3 +224,65 @@ using (
   bucket_id = 'avatars'
   and (storage.foldername(name))[1] = auth.uid()::text
 );
+
+
+-- =====================================
+-- COMMENTS
+-- =====================================
+
+create table if not exists public.submission_comments (
+  id uuid primary key default gen_random_uuid(),
+  submission_id uuid not null references public.submissions(id) on delete cascade,
+  parent_comment_id uuid references public.submission_comments(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now(),
+  constraint submission_comments_body_length check (char_length(body) between 1 and 500)
+);
+
+create index if not exists submission_comments_submission_idx
+  on public.submission_comments (submission_id, created_at);
+
+create index if not exists submission_comments_parent_idx
+  on public.submission_comments (parent_comment_id);
+
+drop view if exists public.comment_feed;
+
+create view public.comment_feed as
+select
+  c.id,
+  c.submission_id,
+  c.parent_comment_id,
+  c.user_id,
+  c.body,
+  c.created_at,
+  p.display_name,
+  p.avatar_url,
+  p.catchphrase
+from public.submission_comments c
+join public.profiles p
+  on p.id = c.user_id;
+
+alter table public.submission_comments enable row level security;
+
+drop policy if exists "comments_select_authenticated" on public.submission_comments;
+drop policy if exists "comments_insert_own" on public.submission_comments;
+drop policy if exists "comments_delete_own" on public.submission_comments;
+
+create policy "comments_select_authenticated"
+on public.submission_comments
+for select
+to authenticated
+using (true);
+
+create policy "comments_insert_own"
+on public.submission_comments
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+create policy "comments_delete_own"
+on public.submission_comments
+for delete
+to authenticated
+using (auth.uid() = user_id);

@@ -1,6 +1,7 @@
 import { supabase } from './supabase-client.js';
 import { parseWordleShare, renderMiniGrid } from './parser.js';
 import { getSession, signIn, signOut, signUp, sendMagicLink, ensureProfile } from './auth.js';
+import { mountComments } from './comments.js';
 
 const CHICAGO_TZ = 'America/Chicago';
 const PLAY_WORDLE_URL = 'https://www.nytimes.com/games/wordle/index.html';
@@ -275,7 +276,7 @@ async function renderTodayStandings(players) {
       ${players.map((player, index) => {
         const avatarSrc = avatarMap.get(player.avatar_url) || DEFAULT_AVATAR;
         return `
-        <article class="player-card">
+        <article class="player-card" data-submission-id="${player.id}">
           <div class="player-row">
             <a class="player-link" href="profile.html?user=${encodeURIComponent(player.user_id)}">
               <div class="player-row-top">
@@ -293,10 +294,19 @@ async function renderTodayStandings(players) {
           </div>
           ${index === 0 && player.solved ? `<div class="winner-banner">Daily winner — first best solve for puzzle #${player.puzzle_number}</div>` : ''}
           <div class="mini-grid">${renderMiniGrid(player.rows_json || [])}</div>
+          <div class="submission-comments" data-comments-host="${player.id}"></div>
         </article>
       `}).join('')}
     </div>
   `;
+
+  await mountComments({
+    container: el.todayStandings,
+    submissions: players,
+    session: state.session,
+    onError: (error) => showToast(error.message || 'Could not load comments.'),
+    onSuccess: (message) => showToast(message),
+  });
 }
 
 async function loadRunningLeaders() {
