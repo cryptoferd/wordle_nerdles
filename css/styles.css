@@ -70,16 +70,6 @@ a:hover { color: white; }
   padding: 20px;
 }
 
-.header-ticker {
-  margin-top: 0.9rem;
-  margin-bottom: 0;
-}
-
-.header-ticker .ticker-track {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-}
-
 .hero-card {
   grid-column: 1 / -1;
   display: flex;
@@ -888,7 +878,8 @@ th { color: var(--muted); font-size: 0.9rem; }
   align-items: center;
   gap: 2.25rem;
   padding: 0.9rem 1.25rem;
-  min-width: max-content;
+  width: max-content;
+  min-width: 200%;
   animation: ticker-scroll 30s linear infinite;
   will-change: transform;
 }
@@ -919,11 +910,27 @@ th { color: var(--muted); font-size: 0.9rem; }
 }
 @media (max-width: 640px) {
   .ticker-track {
-    gap: 1.4rem;
-    padding: 0.8rem 1rem;
-    animation-duration: 24s;
-  }
+  display: inline-flex;
+  align-items: center;
+  gap: 2.25rem;
+  padding: 0.9rem 1.25rem;
+  width: max-content;
+  min-width: 200%;
+  animation: ticker-scroll 30s linear infinite;
+  will-change: transform;
+}
   .ticker-item {
     font-size: 0.95rem;
   }
+}
+
+
+.header-ticker {
+  margin-top: 0.9rem;
+  margin-bottom: 0;
+}
+
+.header-ticker .ticker-track {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
 }

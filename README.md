@@ -97,3 +97,9 @@ After updating, re-run `sql/schema.sql` and create a private storage bucket name
 - Banner pauses on hover.
 - Shows current weekly top 3 and previous weekly winner.
 - Weekly, monthly, and all-time standings now require a player to have completed every tracked puzzle in that period to qualify.
+
+
+## v10 update
+- Moved the weekly ticker into the header on all pages.
+- Fixed desktop banner rendering by making the ticker track wide enough to animate visibly.
+- Added a shared `js/ticker.js` so every page header shows the same live weekly standings banner.
