@@ -87,6 +87,12 @@ function getChicagoIsoDateFromTimestamp(timestamp) {
   return chicagoDateStringFromParts(parts.year, parts.month, parts.day);
 }
 
+function getChicagoIsoDateFromPuzzleNumber(puzzleNumber) {
+  if (!Number.isFinite(Number(puzzleNumber))) return null;
+  const offset = Number(puzzleNumber) - WORDLE_ANCHOR_PUZZLE;
+  return addDaysToIsoDate(WORDLE_ANCHOR_DATE, offset);
+}
+
 function formatChicagoDateLabel(isoDate) {
   const [year, month, day] = isoDate.split('-').map(Number);
   return new Intl.DateTimeFormat('en-US', {
@@ -304,8 +310,8 @@ async function loadLeaderboard() {
   if (state.range === 'week') {
     const weekRange = getChicagoWeekRange(new Date(), state.periodOffset);
     filteredRows = allRows.filter((row) => {
-      const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
-      return chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
+      const chicagoDate = getChicagoIsoDateFromPuzzleNumber(row.puzzle_number);
+      return chicagoDate && chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
     });
     title = `Week of ${formatChicagoDateLabel(weekRange.start)} – ${formatChicagoDateLabel(addDaysToIsoDate(weekRange.endExclusive, -1))} · Chicago`;
   }
@@ -313,8 +319,8 @@ async function loadLeaderboard() {
   if (state.range === 'month') {
     const monthRange = getChicagoMonthRange(new Date(), state.periodOffset);
     filteredRows = allRows.filter((row) => {
-      const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
-      return chicagoDate >= monthRange.start && chicagoDate < monthRange.endExclusive;
+      const chicagoDate = getChicagoIsoDateFromPuzzleNumber(row.puzzle_number);
+      return chicagoDate && chicagoDate >= monthRange.start && chicagoDate < monthRange.endExclusive;
     });
     title = `${formatChicagoMonthLabelFromParts(monthRange.year, monthRange.month)} · Chicago`;
   }

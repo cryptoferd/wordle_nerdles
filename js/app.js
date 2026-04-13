@@ -519,18 +519,18 @@ async function loadRunningLeaders() {
   const previousWeekEndExclusive = weekRange.start;
 
   const weeklyRows = rows.filter((row) => {
-    const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
-    return chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
+    const chicagoDate = getChicagoIsoDateFromPuzzleNumber(row.puzzle_number);
+    return chicagoDate && chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
   });
 
   const previousWeeklyRows = rows.filter((row) => {
-    const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
-    return chicagoDate >= previousWeekStart && chicagoDate < previousWeekEndExclusive;
+    const chicagoDate = getChicagoIsoDateFromPuzzleNumber(row.puzzle_number);
+    return chicagoDate && chicagoDate >= previousWeekStart && chicagoDate < previousWeekEndExclusive;
   });
 
   const monthlyRows = rows.filter((row) => {
-    const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
-    return chicagoDate >= monthRange.start && chicagoDate < monthRange.endExclusive;
+    const chicagoDate = getChicagoIsoDateFromPuzzleNumber(row.puzzle_number);
+    return chicagoDate && chicagoDate >= monthRange.start && chicagoDate < monthRange.endExclusive;
   });
 
   if (el.weeklyRangeLabel) {

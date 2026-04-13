@@ -66,6 +66,12 @@ function getChicagoIsoDateFromTimestamp(timestamp) {
   return chicagoDateStringFromParts(parts.year, parts.month, parts.day);
 }
 
+function getChicagoIsoDateFromPuzzleNumber(puzzleNumber) {
+  if (!Number.isFinite(Number(puzzleNumber))) return null;
+  const offset = Number(puzzleNumber) - WORDLE_ANCHOR_PUZZLE;
+  return addDaysToIsoDate(WORDLE_ANCHOR_DATE, offset);
+}
+
 function getUniquePuzzleCount(rows) {
   return new Set((rows || []).map((row) => row.puzzle_number)).size;
 }
@@ -171,13 +177,13 @@ async function loadWeeklyTicker() {
   const previousWeekEndExclusive = weekRange.start;
 
   const weeklyRows = rows.filter((row) => {
-    const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
-    return chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
+    const chicagoDate = getChicagoIsoDateFromPuzzleNumber(row.puzzle_number);
+    return chicagoDate && chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
   });
 
   const previousWeeklyRows = rows.filter((row) => {
-    const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
-    return chicagoDate >= previousWeekStart && chicagoDate < previousWeekEndExclusive;
+    const chicagoDate = getChicagoIsoDateFromPuzzleNumber(row.puzzle_number);
+    return chicagoDate && chicagoDate >= previousWeekStart && chicagoDate < previousWeekEndExclusive;
   });
 
   renderWeeklyTicker(
