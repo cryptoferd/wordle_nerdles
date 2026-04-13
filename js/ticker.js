@@ -118,28 +118,28 @@ function renderWeeklyTicker(currentTop3, previousWinner, requiredPuzzleCount) {
   if (currentTop3[0]) {
     parts.push(`
       <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[0].user_id)}">
-        <span class="ticker-item"><span>🥇</span><span class="muted-label">This week:</span><span>${escapeHtml(currentTop3[0].display_name)}</span><span>(${currentTop3[0].average.toFixed(2)})</span></span>
+        <span class="ticker-item"><span>🥇</span><span class="muted-label">Top player this week:</span><span>${escapeHtml(currentTop3[0].display_name)}</span><span>(${currentTop3[0].average.toFixed(2)})</span></span>
       </a>
     `);
   }
   if (currentTop3[1]) {
     parts.push(`
       <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[1].user_id)}">
-        <span class="ticker-item"><span>🥈</span><span class="muted-label">This week:</span><span>${escapeHtml(currentTop3[1].display_name)}</span><span>(${currentTop3[1].average.toFixed(2)})</span></span>
+        <span class="ticker-item"><span>🥈</span><span class="muted-label">Currently in 2nd:</span><span>${escapeHtml(currentTop3[1].display_name)}</span><span>(${currentTop3[1].average.toFixed(2)})</span></span>
       </a>
     `);
   }
   if (currentTop3[2]) {
     parts.push(`
       <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[2].user_id)}">
-        <span class="ticker-item"><span>🥉</span><span class="muted-label">This week:</span><span>${escapeHtml(currentTop3[2].display_name)}</span><span>(${currentTop3[2].average.toFixed(2)})</span></span>
+        <span class="ticker-item"><span>🥉</span><span class="muted-label">Currently in 3rd:</span><span>${escapeHtml(currentTop3[2].display_name)}</span><span>(${currentTop3[2].average.toFixed(2)})</span></span>
       </a>
     `);
   }
   if (previousWinner) {
     parts.push(`
       <a class="ticker-link" href="profile.html?user=${encodeURIComponent(previousWinner.user_id)}">
-        <span class="ticker-item"><span>🏆</span><span class="muted-label">Last week:</span><span>${escapeHtml(previousWinner.display_name)}</span><span>(${previousWinner.average.toFixed(2)})</span></span>
+        <span class="ticker-item"><span>🏆</span><span class="muted-label">Last week's champ:</span><span>${escapeHtml(previousWinner.display_name)}</span><span>(${previousWinner.average.toFixed(2)})</span></span>
       </a>
     `);
   }
