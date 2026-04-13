@@ -2,6 +2,8 @@ import { supabase } from './supabase-client.js';
 
 const CHICAGO_TZ = 'America/Chicago';
 const trackEl = document.getElementById('weekly-ticker-track');
+const WORDLE_ANCHOR_PUZZLE = 1758;
+const WORDLE_ANCHOR_DATE = '2026-04-12';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -70,8 +72,7 @@ function getUniquePuzzleCount(rows) {
 
 function summarizeLeaderboard(rows) {
   const solvedRows = (rows || []).filter((row) => row.solved && Number.isFinite(row.score));
-  const requiredPuzzleCount = getUniquePuzzleCount(rows);
-  if (!solvedRows.length || !requiredPuzzleCount) return null;
+  if (!solvedRows.length) return null;
 
   const byUser = new Map();
 
@@ -91,19 +92,18 @@ function summarizeLeaderboard(rows) {
   }
 
   const leaderboard = [...byUser.values()]
-    .filter((row) => row.games >= requiredPuzzleCount)
     .map((row) => ({
       ...row,
       average: row.totalScore / row.games,
     }))
     .sort((a, b) => {
-      if (a.average !== b.average) return a.average - b.average;
       if (a.games !== b.games) return b.games - a.games;
+      if (a.average !== b.average) return a.average - b.average;
       if (a.best !== b.best) return a.best - b.best;
       return a.display_name.localeCompare(b.display_name);
     });
 
-  return leaderboard.length ? { leaderboard, leader: leaderboard[0], requiredPuzzleCount } : null;
+  return leaderboard.length ? { leaderboard, leader: leaderboard[0] } : null;
 }
 
 function summarizeTopPlayers(rows) {
@@ -118,34 +118,34 @@ function renderWeeklyTicker(currentTop3, previousWinner, requiredPuzzleCount) {
   if (currentTop3[0]) {
     parts.push(`
       <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[0].user_id)}">
-        <span class="ticker-item"><span>🥇</span><span class="muted-label">#1:</span><span>${escapeHtml(currentTop3[0].display_name)}</span><span>(${currentTop3[0].average.toFixed(2)})</span></span>
+        <span class="ticker-item"><span>🥇</span><span class="muted-label">This week:</span><span>${escapeHtml(currentTop3[0].display_name)}</span><span>(${currentTop3[0].average.toFixed(2)})</span></span>
       </a>
     `);
   }
   if (currentTop3[1]) {
     parts.push(`
       <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[1].user_id)}">
-        <span class="ticker-item"><span>🥈</span><span class="muted-label">#2:</span><span>${escapeHtml(currentTop3[1].display_name)}</span><span>(${currentTop3[1].average.toFixed(2)})</span></span>
+        <span class="ticker-item"><span>🥈</span><span class="muted-label">This week:</span><span>${escapeHtml(currentTop3[1].display_name)}</span><span>(${currentTop3[1].average.toFixed(2)})</span></span>
       </a>
     `);
   }
   if (currentTop3[2]) {
     parts.push(`
       <a class="ticker-link" href="profile.html?user=${encodeURIComponent(currentTop3[2].user_id)}">
-        <span class="ticker-item"><span>🥉</span><span class="muted-label">#3:</span><span>${escapeHtml(currentTop3[2].display_name)}</span><span>(${currentTop3[2].average.toFixed(2)})</span></span>
+        <span class="ticker-item"><span>🥉</span><span class="muted-label">This week:</span><span>${escapeHtml(currentTop3[2].display_name)}</span><span>(${currentTop3[2].average.toFixed(2)})</span></span>
       </a>
     `);
   }
   if (previousWinner) {
     parts.push(`
       <a class="ticker-link" href="profile.html?user=${encodeURIComponent(previousWinner.user_id)}">
-        <span class="ticker-item"><span>🏆</span><span class="muted-label">Last week's Champ:</span><span>${escapeHtml(previousWinner.display_name)}</span><span>(${previousWinner.average.toFixed(2)})</span></span>
+        <span class="ticker-item"><span>🏆</span><span class="muted-label">Last week:</span><span>${escapeHtml(previousWinner.display_name)}</span><span>(${previousWinner.average.toFixed(2)})</span></span>
       </a>
     `);
   }
 
   if (!parts.length) {
-    trackEl.innerHTML = `<span class="ticker-item">Need ${requiredPuzzleCount || 0} completed weekly plays before standings appear.</span>`;
+    trackEl.innerHTML = `<span class="ticker-item">No weekly standings yet.</span>`;
     return;
   }
 

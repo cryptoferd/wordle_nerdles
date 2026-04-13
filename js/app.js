@@ -6,6 +6,46 @@ import { mountComments, attachScreenshotToSubmission, getSignedScreenshotUrl } f
 const CHICAGO_TZ = 'America/Chicago';
 const PLAY_WORDLE_URL = 'https://www.nytimes.com/games/wordle/index.html';
 const DEFAULT_AVATAR = './assets/default-avatar.svg';
+const WORDLE_ANCHOR_PUZZLE = 1758;
+const WORDLE_ANCHOR_DATE = '2026-04-12';
+
+
+function getChicagoNowParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: CHICAGO_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const map = {};
+  for (const part of parts) {
+    if (part.type !== 'literal') map[part.type] = part.value;
+  }
+
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    isoDate: `${map.year}-${map.month}-${map.day}`,
+  };
+}
+
+function daysBetweenIsoDates(startIso, endIso) {
+  const [sy, sm, sd] = startIso.split('-').map(Number);
+  const [ey, em, ed] = endIso.split('-').map(Number);
+
+  const start = Date.UTC(sy, sm - 1, sd);
+  const end = Date.UTC(ey, em - 1, ed);
+
+  return Math.round((end - start) / 86400000);
+}
+
+function getCurrentChicagoPuzzleNumber(now = new Date()) {
+  const chicagoToday = getChicagoNowParts(now).isoDate;
+  const offset = daysBetweenIsoDates(WORDLE_ANCHOR_DATE, chicagoToday);
+  return WORDLE_ANCHOR_PUZZLE + offset;
+}
 
 const state = {
   session: null,
@@ -220,8 +260,7 @@ function getUniquePuzzleCount(rows) {
 
 function summarizeTopPlayers(rows) {
   const solvedRows = (rows || []).filter((row) => row.solved && Number.isFinite(row.score));
-  const requiredPuzzleCount = getUniquePuzzleCount(rows);
-  if (!solvedRows.length || !requiredPuzzleCount) return [];
+  if (!solvedRows.length) return [];
 
   const byUser = new Map();
 
@@ -242,14 +281,13 @@ function summarizeTopPlayers(rows) {
   }
 
   return [...byUser.values()]
-    .filter((row) => row.games >= requiredPuzzleCount)
     .map((row) => ({
       ...row,
       average: row.totalScore / row.games,
     }))
     .sort((a, b) => {
-      if (a.average !== b.average) return a.average - b.average;
       if (a.games !== b.games) return b.games - a.games;
+      if (a.average !== b.average) return a.average - b.average;
       if (a.best !== b.best) return a.best - b.best;
       return a.display_name.localeCompare(b.display_name);
     });
@@ -313,7 +351,7 @@ function renderWeeklyTicker(currentTop3, previousWinner, requiredPuzzleCount) {
   }
 
   if (!parts.length) {
-    el.weeklyTickerTrack.innerHTML = `<span class="ticker-item">Need ${requiredPuzzleCount || 0} completed weekly plays before standings appear.</span>`;
+    el.weeklyTickerTrack.innerHTML = `<span class="ticker-item">No weekly standings yet.</span>`;
     return;
   }
 
@@ -322,8 +360,7 @@ function renderWeeklyTicker(currentTop3, previousWinner, requiredPuzzleCount) {
 
 function summarizeLeaderboard(rows) {
   const solvedRows = (rows || []).filter((row) => row.solved && Number.isFinite(row.score));
-  const requiredPuzzleCount = getUniquePuzzleCount(rows);
-  if (!solvedRows.length || !requiredPuzzleCount) return null;
+  if (!solvedRows.length) return null;
 
   const byUser = new Map();
 
@@ -345,14 +382,13 @@ function summarizeLeaderboard(rows) {
   }
 
   const leaderboard = [...byUser.values()]
-    .filter((row) => row.games >= requiredPuzzleCount)
     .map((row) => ({
       ...row,
       average: row.totalScore / row.games,
     }))
     .sort((a, b) => {
-      if (a.average !== b.average) return a.average - b.average;
       if (a.games !== b.games) return b.games - a.games;
+      if (a.average !== b.average) return a.average - b.average;
       if (a.best !== b.best) return a.best - b.best;
       return a.display_name.localeCompare(b.display_name);
     });
@@ -362,7 +398,6 @@ function summarizeLeaderboard(rows) {
   return {
     leaderboard,
     leader: leaderboard[0],
-    requiredPuzzleCount,
   };
 }
 
@@ -517,7 +552,7 @@ async function loadRunningLeaders() {
     el.weeklyLeaderDetail,
     weeklySummary,
     weeklyRows.length
-      ? `Need all ${getUniquePuzzleCount(weeklyRows)} weekly puzzles played to qualify.`
+      ? 'No solved games yet this week.'
       : 'No solved games yet this week.'
   );
 
@@ -526,7 +561,7 @@ async function loadRunningLeaders() {
     el.monthlyLeaderDetail,
     monthlySummary,
     monthlyRows.length
-      ? `Need all ${getUniquePuzzleCount(monthlyRows)} monthly puzzles played to qualify.`
+      ? 'No solved games yet this month.'
       : 'No solved games yet this month.'
   );
 
@@ -534,7 +569,7 @@ async function loadRunningLeaders() {
     el.alltimeLeaderName,
     el.alltimeLeaderDetail,
     allTimeSummary,
-    rows.length ? `Need all ${getUniquePuzzleCount(rows)} tracked puzzles played to qualify.` : 'No all-time games yet.'
+    rows.length ? 'No all-time games yet.' : 'No all-time games yet.'
   );
 
   const weeklyTop3 = summarizeTopPlayers(weeklyRows).slice(0, 3);
@@ -543,22 +578,11 @@ async function loadRunningLeaders() {
   renderWeeklyTicker(weeklyTop3, previousWeekWinner, getUniquePuzzleCount(weeklyRows));
 }
 
-async function loadTodayStats(forcedPuzzle = null) {
+async async function loadTodayStats(forcedPuzzle = null) {
   let puzzleNumber = forcedPuzzle;
 
   if (!puzzleNumber) {
-    const { data: latestRows, error: latestError } = await supabase
-      .from('submissions')
-      .select('puzzle_number')
-      .order('puzzle_number', { ascending: false })
-      .limit(1);
-
-    if (latestError) {
-      console.error(latestError);
-      return;
-    }
-
-    puzzleNumber = latestRows?.[0]?.puzzle_number || null;
+    puzzleNumber = getCurrentChicagoPuzzleNumber();
   }
 
   state.currentPuzzle = puzzleNumber;

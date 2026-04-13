@@ -106,7 +106,6 @@ async function getAvatarUrlMap(rows) {
 }
 
 function aggregateSolvedRows(rows) {
-  const requiredPuzzleCount = getUniquePuzzleCount(rows);
   const byUser = new Map();
 
   for (const row of rows) {
@@ -131,14 +130,13 @@ function aggregateSolvedRows(rows) {
   }
 
   return [...byUser.values()]
-    .filter((row) => row.games >= requiredPuzzleCount)
     .map((row) => ({
       ...row,
       average: row.games ? row.totalScore / row.games : null,
     }))
     .sort((a, b) => {
-      if ((a.average ?? 99) !== (b.average ?? 99)) return (a.average ?? 99) - (b.average ?? 99);
       if (a.games !== b.games) return b.games - a.games;
+      if ((a.average ?? 99) !== (b.average ?? 99)) return (a.average ?? 99) - (b.average ?? 99);
       if ((a.best ?? 99) !== (b.best ?? 99)) return (a.best ?? 99) - (b.best ?? 99);
       return a.display_name.localeCompare(b.display_name);
     });
@@ -147,7 +145,6 @@ function aggregateSolvedRows(rows) {
 function renderSummaryCards(rows, title) {
   const solved = rows.filter((row) => row.solved && Number.isFinite(row.score));
   const leaderboard = aggregateSolvedRows(rows);
-  const requiredPuzzleCount = getUniquePuzzleCount(rows);
   const leader = leaderboard[0];
   const avg = solved.length ? (solved.reduce((sum, row) => sum + row.score, 0) / solved.length).toFixed(2) : '—';
 
@@ -165,7 +162,7 @@ function renderSummaryCards(rows, title) {
     <article class="summary-card">
       <span class="summary-label">Solved games</span>
       <strong>${solved.length}</strong>
-      <p class="muted">Average score ${avg}${requiredPuzzleCount ? ` · requires ${requiredPuzzleCount}/${requiredPuzzleCount} plays` : ''}</p>
+      <p class="muted">Average score ${avg}</p>
     </article>
     <article class="summary-card">
       <span class="summary-label">Top best</span>
