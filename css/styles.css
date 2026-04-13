@@ -938,3 +938,17 @@ th { color: var(--muted); font-size: 0.9rem; }
     font-size: 0.95rem;
   }
 }
+
+.period-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.period-nav .ghost-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

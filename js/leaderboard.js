@@ -5,6 +5,16 @@ const DEFAULT_AVATAR = './assets/default-avatar.svg';
 const wrap = document.getElementById('leaderboard-table-wrap');
 const summaryWrap = document.getElementById('leaderboard-summary');
 const buttons = [...document.querySelectorAll('.filter-btn')];
+const periodNav = document.getElementById('period-nav');
+const periodNavLabel = document.getElementById('period-nav-label');
+const periodPrevBtn = document.getElementById('period-prev-btn');
+const periodCurrentBtn = document.getElementById('period-current-btn');
+const periodNextBtn = document.getElementById('period-next-btn');
+
+const state = {
+  range: 'week',
+  periodOffset: 0, // 0 = current period, 1 = previous period, 2 = two periods back
+};
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -50,21 +60,26 @@ function addDaysToIsoDate(isoDate, days) {
   return chicagoDateStringFromParts(utc.getUTCFullYear(), utc.getUTCMonth() + 1, utc.getUTCDate());
 }
 
-function getChicagoWeekRange(date = new Date()) {
+function getChicagoWeekRange(date = new Date(), offset = 0) {
   const parts = getChicagoDateParts(date);
   const order = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
-  const start = addDaysToIsoDate(parts.isoDate, -order[parts.weekdayShort]);
+  const currentStart = addDaysToIsoDate(parts.isoDate, -order[parts.weekdayShort]);
+  const start = addDaysToIsoDate(currentStart, -(offset * 7));
   const endExclusive = addDaysToIsoDate(start, 7);
   return { start, endExclusive };
 }
 
-function getChicagoMonthRange(date = new Date()) {
+function getChicagoMonthRange(date = new Date(), offset = 0) {
   const parts = getChicagoDateParts(date);
-  const start = chicagoDateStringFromParts(parts.year, parts.month, 1);
-  const nextMonthYear = parts.month === 12 ? parts.year + 1 : parts.year;
-  const nextMonth = parts.month === 12 ? 1 : parts.month + 1;
-  const endExclusive = chicagoDateStringFromParts(nextMonthYear, nextMonth, 1);
-  return { start, endExclusive };
+  const totalMonths = (parts.year * 12 + (parts.month - 1)) - offset;
+  const year = Math.floor(totalMonths / 12);
+  const month = (totalMonths % 12) + 1;
+  const start = chicagoDateStringFromParts(year, month, 1);
+  const nextTotalMonths = totalMonths + 1;
+  const nextYear = Math.floor(nextTotalMonths / 12);
+  const nextMonth = (nextTotalMonths % 12) + 1;
+  const endExclusive = chicagoDateStringFromParts(nextYear, nextMonth, 1);
+  return { start, endExclusive, year, month };
 }
 
 function getChicagoIsoDateFromTimestamp(timestamp) {
@@ -81,12 +96,12 @@ function formatChicagoDateLabel(isoDate) {
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
-function formatChicagoMonthLabel(date = new Date()) {
+function formatChicagoMonthLabelFromParts(year, month) {
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: CHICAGO_TZ,
+    timeZone: 'UTC',
     month: 'long',
     year: 'numeric',
-  }).format(date);
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
 function getUniquePuzzleCount(rows) {
@@ -193,7 +208,7 @@ async function renderDailyWinner(rows) {
     .sort((a, b) => {
       if (a.solved !== b.solved) return a.solved ? -1 : 1;
       if ((a.score ?? 99) !== (b.score ?? 99)) return (a.score ?? 99) - (b.score ?? 99);
-      return Date.parse(a.submitted_at) - Date.parse(b.submitted_at);
+      return (a.display_name || '').localeCompare(b.display_name || '');
     });
 
   const winner = dailyRows.find((row) => row.solved) || null;
@@ -233,9 +248,34 @@ async function renderDailyWinner(rows) {
   `;
 }
 
-async function loadLeaderboard(range = 'week') {
+function updatePeriodNav() {
+  const periodMode = state.range === 'week' || state.range === 'month';
+
+  if (periodNav) {
+    periodNav.classList.toggle('hidden', !periodMode);
+  }
+
+  if (!periodMode) return;
+
+  if (periodNavLabel) {
+    if (state.range === 'week') {
+      periodNavLabel.textContent = state.periodOffset === 0
+        ? 'Viewing current week'
+        : `Viewing ${state.periodOffset} week${state.periodOffset === 1 ? '' : 's'} ago`;
+    } else {
+      periodNavLabel.textContent = state.periodOffset === 0
+        ? 'Viewing current month'
+        : `Viewing ${state.periodOffset} month${state.periodOffset === 1 ? '' : 's'} ago`;
+    }
+  }
+
+  if (periodNextBtn) periodNextBtn.disabled = state.periodOffset === 0;
+}
+
+async function loadLeaderboard() {
   wrap.textContent = 'Loading leaderboard…';
   summaryWrap.innerHTML = '';
+  updatePeriodNav();
 
   const { data, error } = await supabase
     .from('submission_feed')
@@ -249,7 +289,7 @@ async function loadLeaderboard(range = 'week') {
 
   const allRows = data || [];
 
-  if (range === 'daily') {
+  if (state.range === 'daily') {
     if (!allRows.length) {
       wrap.textContent = 'No leaderboard data yet.';
       return;
@@ -261,8 +301,8 @@ async function loadLeaderboard(range = 'week') {
   let filteredRows = allRows;
   let title = 'All time';
 
-  if (range === 'week') {
-    const weekRange = getChicagoWeekRange();
+  if (state.range === 'week') {
+    const weekRange = getChicagoWeekRange(new Date(), state.periodOffset);
     filteredRows = allRows.filter((row) => {
       const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
       return chicagoDate >= weekRange.start && chicagoDate < weekRange.endExclusive;
@@ -270,13 +310,13 @@ async function loadLeaderboard(range = 'week') {
     title = `Week of ${formatChicagoDateLabel(weekRange.start)} – ${formatChicagoDateLabel(addDaysToIsoDate(weekRange.endExclusive, -1))} · Chicago`;
   }
 
-  if (range === 'month') {
-    const monthRange = getChicagoMonthRange();
+  if (state.range === 'month') {
+    const monthRange = getChicagoMonthRange(new Date(), state.periodOffset);
     filteredRows = allRows.filter((row) => {
       const chicagoDate = getChicagoIsoDateFromTimestamp(row.submitted_at);
       return chicagoDate >= monthRange.start && chicagoDate < monthRange.endExclusive;
     });
-    title = `${formatChicagoMonthLabel()} · Chicago`;
+    title = `${formatChicagoMonthLabelFromParts(monthRange.year, monthRange.month)} · Chicago`;
   }
 
   const leaderboard = aggregateSolvedRows(filteredRows);
@@ -321,8 +361,30 @@ buttons.forEach((button) => {
   button.addEventListener('click', () => {
     buttons.forEach((btn) => btn.classList.remove('active'));
     button.classList.add('active');
-    loadLeaderboard(button.dataset.range);
+    state.range = button.dataset.range;
+    if (state.range !== 'week' && state.range !== 'month') {
+      state.periodOffset = 0;
+    }
+    loadLeaderboard();
   });
 });
 
-loadLeaderboard('week');
+periodPrevBtn?.addEventListener('click', () => {
+  if (state.range !== 'week' && state.range !== 'month') return;
+  state.periodOffset += 1;
+  loadLeaderboard();
+});
+
+periodCurrentBtn?.addEventListener('click', () => {
+  if (state.range !== 'week' && state.range !== 'month') return;
+  state.periodOffset = 0;
+  loadLeaderboard();
+});
+
+periodNextBtn?.addEventListener('click', () => {
+  if ((state.range !== 'week' && state.range !== 'month') || state.periodOffset === 0) return;
+  state.periodOffset -= 1;
+  loadLeaderboard();
+});
+
+loadLeaderboard();

@@ -607,7 +607,7 @@ async function loadTodayStats(forcedPuzzle = null) {
     .eq('puzzle_number', puzzleNumber)
     .order('solved', { ascending: false })
     .order('score', { ascending: true, nullsFirst: false })
-    .order('submitted_at', { ascending: true });
+    .order('display_name', { ascending: true });
 
   if (error) {
     console.error(error);
@@ -623,15 +623,21 @@ async function loadTodayStats(forcedPuzzle = null) {
   const solveRate = players.length
     ? `${Math.round((solved.length / players.length) * 100)}%`
     : '—';
-  const winner = solved[0] || null;
+  const bestScore = solved.length ? Math.min(...solved.map((p) => p.score)) : null;
+  const winners = bestScore == null ? [] : solved.filter((p) => p.score === bestScore);
+  const winner = winners[0] || null;
 
   if (el.todayPlayerCount) el.todayPlayerCount.textContent = String(players.length);
   if (el.todayAverage) el.todayAverage.textContent = avg;
   if (el.todaySolveRate) el.todaySolveRate.textContent = solveRate;
-  if (el.dailyWinnerName) el.dailyWinnerName.textContent = winner ? winner.display_name : '—';
+  if (el.dailyWinnerName) {
+    el.dailyWinnerName.textContent = winners.length
+      ? winners.map((p) => p.display_name).join(', ')
+      : '—';
+  }
   if (el.dailyWinnerDetail) {
-    el.dailyWinnerDetail.textContent = winner
-      ? `${winner.score}/6 · submitted ${new Date(winner.submitted_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+    el.dailyWinnerDetail.textContent = winners.length
+      ? `${bestScore}/6${winners.length > 1 ? ' · tie' : ''}`
       : `No successful solve yet for puzzle #${puzzleNumber}.`;
   }
 
