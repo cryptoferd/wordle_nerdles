@@ -578,7 +578,7 @@ async function loadRunningLeaders() {
   renderWeeklyTicker(weeklyTop3, previousWeekWinner, getUniquePuzzleCount(weeklyRows));
 }
 
-async async function loadTodayStats(forcedPuzzle = null) {
+async function loadTodayStats(forcedPuzzle = null) {
   let puzzleNumber = forcedPuzzle;
 
   if (!puzzleNumber) {
