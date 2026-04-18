@@ -8,7 +8,7 @@ const WORD_LENGTH = 5;
 const KEYBOARD_ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
   ['A','S','D','F','G','H','J','K','L'],
-  ['↳','Z','X','C','V','B','N','M','⌫'],
+  ['ENTER','Z','X','C','V','B','N','M','⌫'],
 ];
 
 const state = {
@@ -239,7 +239,8 @@ function renderKeyboard() {
       ${row.map((key) => {
         const statusClass = /^[A-Z]$/.test(key) ? (state.statuses[key] || '') : '';
         const specialClass = key === 'ENTER' || key === '⌫' ? 'wide' : '';
-        return `<button type="button" class="practice-key ${statusClass} ${specialClass}" data-key="${key}">${key}</button>`;
+        const actualKey = key === '↳' ? 'ENTER' : key;
+        return `<button type="button" class="practice-key ${statusClass} ${specialClass}" data-key="${actualKey}">${key}</button>`;
       }).join('')}
     </div>
   `).join('');
@@ -302,7 +303,11 @@ function submitGuess() {
 }
 
 function handleKey(rawKey) {
-  const key = rawKey === 'Backspace' ? '⌫' : rawKey.toUpperCase();
+  const key = rawKey === 'Backspace'
+    ? '⌫'
+    : rawKey === '↳'
+      ? 'ENTER'
+      : rawKey.toUpperCase();
 
   if (state.isComplete && key !== 'ENTER') return;
 
