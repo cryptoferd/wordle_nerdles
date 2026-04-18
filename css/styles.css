@@ -34,8 +34,6 @@ a:hover { color: white; }
   flex-wrap: wrap;
   padding: 24px 28px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
-  position: sticky;
-  top: 0;
   backdrop-filter: blur(10px);
   background: rgba(18,18,19,0.92);
   z-index: 10;
@@ -372,10 +370,31 @@ th { color: var(--muted); font-size: 0.9rem; }
   .page-grid { grid-template-columns: 1fr; padding: 16px; }
   .hero-card { flex-direction: column; align-items: stretch; }
   .hero-stats { min-width: 0; }
-  .site-header { padding: 16px; flex-direction: column; align-items: stretch; }
+  .site-header {
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
   .site-header h1 { font-size: 1.65rem; }
-  .nav { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
-  .nav a { white-space: nowrap; }
+  .nav {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    width: 100%;
+    max-width: 100%;
+    scrollbar-width: none;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
   .button-row { flex-wrap: wrap; }
   .filter-scroll { flex-wrap: nowrap; }
   .modal-panel { margin: 2vh 12px; }
@@ -1168,5 +1187,25 @@ th { color: var(--muted); font-size: 0.9rem; }
 
   .practice-key.wide {
     min-width: 68px;
+  }
+}
+
+
+@media (max-width: 640px) {
+  .practice-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .practice-board-card {
+    order: 1;
+  }
+
+  .practice-keyboard {
+    order: 2;
+    margin-top: 4px;
+  }
+
+  .practice-side-card {
+    order: 3;
   }
 }
