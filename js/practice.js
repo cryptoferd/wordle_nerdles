@@ -8,7 +8,7 @@ const WORD_LENGTH = 5;
 const KEYBOARD_ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
   ['A','S','D','F','G','H','J','K','L'],
-  ['ENTER','Z','X','C','V','B','N','M','⌫'],
+  ['↳','Z','X','C','V','B','N','M','⌫'],
 ];
 
 const state = {
@@ -237,16 +237,21 @@ function renderKeyboard() {
   el.keyboard.innerHTML = KEYBOARD_ROWS.map((row) => `
     <div class="practice-key-row">
       ${row.map((key) => {
-        const statusClass = /^[A-Z]$/.test(key) ? (state.statuses[key] || '') : '';
-        const specialClass = key === 'ENTER' || key === '⌫' ? 'wide' : '';
         const actualKey = key === '↳' ? 'ENTER' : key;
-        return `<button type="button" class="practice-key ${statusClass} ${specialClass}" data-key="${actualKey}">${key}</button>`;
+        const statusClass = /^[A-Z]$/.test(actualKey) ? (state.statuses[actualKey] || '') : '';
+        const specialClass = actualKey === 'ENTER' || actualKey === '⌫' ? 'wide' : '';
+        return `<button type="button" class="practice-key ${statusClass} ${specialClass}" data-key="${actualKey}" aria-label="${actualKey}">${key}</button>`;
       }).join('')}
     </div>
   `).join('');
 
   el.keyboard.querySelectorAll('[data-key]').forEach((button) => {
-    button.addEventListener('click', () => handleKey(button.dataset.key));
+    const fire = (event) => {
+      event.preventDefault();
+      handleKey(button.dataset.key);
+    };
+    button.addEventListener('click', fire);
+    button.addEventListener('touchend', fire, { passive: false });
   });
 }
 
