@@ -1386,3 +1386,34 @@ button {
     margin-top: 8px;
   }
 }
+
+
+/* Practice page mobile swap fix */
+@media (max-width: 640px) {
+  .practice-page-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .practice-shell {
+    display: contents;
+  }
+
+  .practice-side-card {
+    order: 1;
+    margin-bottom: 12px;
+  }
+
+  .practice-help {
+    display: none;
+  }
+
+  .practice-board-card {
+    order: 2;
+  }
+
+  .practice-keyboard {
+    order: 3;
+    margin-top: 8px;
+  }
+}
