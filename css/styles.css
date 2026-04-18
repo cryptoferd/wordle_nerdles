@@ -1314,3 +1314,48 @@ button {
     margin-right: 0;
   }
 }
+
+
+/* Practice keyboard mobile fit fix */
+.practice-keyboard,
+.practice-key-row {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .practice-keyboard {
+    overflow: hidden;
+  }
+
+  .practice-key-row {
+    display: grid;
+    width: 100%;
+    gap: 4px;
+  }
+
+  .practice-key-row:nth-child(1) {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+
+  .practice-key-row:nth-child(2) {
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+  }
+
+  .practice-key-row:nth-child(3) {
+    grid-template-columns: 1.4fr repeat(7, minmax(0, 1fr)) 1.4fr;
+  }
+
+  .practice-key {
+    min-width: 0;
+    width: 100%;
+    height: 48px;
+    padding: 0 4px;
+    font-size: 0.84rem;
+  }
+
+  .practice-key.wide {
+    min-width: 0;
+    width: 100%;
+  }
+}
