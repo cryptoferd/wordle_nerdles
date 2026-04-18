@@ -240,6 +240,12 @@ function getChicagoIsoDateFromTimestamp(timestamp) {
   return chicagoDateStringFromParts(parts.year, parts.month, parts.day);
 }
 
+function getChicagoIsoDateFromPuzzleNumber(puzzleNumber) {
+  if (!Number.isFinite(Number(puzzleNumber))) return null;
+  const offset = Number(puzzleNumber) - WORDLE_ANCHOR_PUZZLE;
+  return addDaysToIsoDate(WORDLE_ANCHOR_DATE, offset);
+}
+
 
 async function getAvatarUrlMap(rows) {
   const uniquePaths = [...new Set((rows || []).map((row) => row.avatar_url).filter(Boolean))];

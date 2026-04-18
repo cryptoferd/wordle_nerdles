@@ -1,45 +1,53 @@
-const VALID_ROW_REGEX = /^[⬛⬜🟨🟩]{5}$/u;
-
 export function parseWordleShare(text) {
   if (!text || typeof text !== 'string') {
     throw new Error('No share text provided.');
   }
 
-  const lines = text
+  const cleaned = text
     .trim()
     .replace(/\r/g, '')
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
 
-  if (lines.length < 2) {
+  if (cleaned.length < 2) {
     throw new Error('Invalid Wordle share text.');
   }
 
-  const header = lines[0];
-  const match = header.match(/^Wordle\s+(\d+)\s+([1-6X])\/6$/i);
-  if (!match) {
-    throw new Error('Header must look like: Wordle 1751 5/6');
+  const header = cleaned[0];
+  const headerMatch = header.match(/^Wordle\s+([\d,]+)\s+([1-6X])\/6$/i);
+
+  if (!headerMatch) {
+    throw new Error('Header must look like: Wordle 1751 3/6');
   }
 
-  const puzzleNumber = Number(match[1]);
-  const scoreText = match[2].toUpperCase();
-  const solved = scoreText !== 'X';
-  const score = solved ? Number(scoreText) : null;
-  const maxTries = 6;
-  const rows = lines.slice(1);
+  const puzzleNumber = Number(headerMatch[1].replace(/,/g, ''));
+  const rawScore = headerMatch[2].toUpperCase();
+  const solved = rawScore !== 'X';
+  const score = solved ? Number(rawScore) : null;
 
-  for (const row of rows) {
-    if (!VALID_ROW_REGEX.test(row)) {
-      throw new Error(`Invalid row detected: ${row}`);
+  const rows = cleaned.slice(1);
+
+  const normalizeRow = (row) =>
+    Array.from(row.normalize('NFKC'))
+      .filter((ch) => !['\uFE0F', '\uFE0E', '\u200D'].includes(ch))
+      .join('');
+
+  const normalizedRows = rows.map(normalizeRow);
+  const validTiles = new Set(['⬛', '⬜', '🟨', '🟩']);
+
+  for (let i = 0; i < normalizedRows.length; i += 1) {
+    const chars = Array.from(normalizedRows[i]);
+    if (chars.length !== 5 || chars.some((ch) => !validTiles.has(ch))) {
+      throw new Error(`Invalid row detected: ${rows[i]}`);
     }
   }
 
-  if (solved && rows.length !== score) {
-    throw new Error(`Expected ${score} rows, but found ${rows.length}.`);
+  if (solved && normalizedRows.length !== score) {
+    throw new Error(`Expected ${score} rows, but found ${normalizedRows.length}.`);
   }
 
-  if (!solved && rows.length !== maxTries) {
+  if (!solved && normalizedRows.length !== 6) {
     throw new Error('A failed game must contain 6 rows.');
   }
 
@@ -47,22 +55,29 @@ export function parseWordleShare(text) {
     game: 'Wordle',
     puzzleNumber,
     score,
+    maxTries: 6,
     solved,
-    maxTries,
-    rows,
+    rows: normalizedRows,
   };
 }
 
-export function renderMiniGrid(rows) {
-  return rows.map((row) => {
-    const cells = [...row].map((char) => {
-      let className = 'gray';
-      if (char === '🟩') className = 'green';
-      else if (char === '🟨') className = 'yellow';
-      else if (char === '⬜') className = 'light';
-      return `<span class="tile ${className}"></span>`;
-    }).join('');
+export function tileClass(symbol) {
+  if (symbol === '🟩') return 'green';
+  if (symbol === '🟨') return 'yellow';
+  if (symbol === '⬜') return 'light';
+  return 'gray';
+}
 
-    return `<div class="mini-row">${cells}</div>`;
-  }).join('');
+export function renderMiniGrid(rows) {
+  return rows
+    .map(
+      (row) => `
+        <div class="mini-row">
+          ${Array.from(row)
+            .map((tile) => `<span class="tile ${tileClass(tile)}"></span>`)
+            .join('')}
+        </div>
+      `
+    )
+    .join('');
 }
