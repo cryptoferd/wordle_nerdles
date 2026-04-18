@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⬛🟨🟩Wordle Nerdles🟩🟨⬛ - How To</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <h1>Wordle Nerdles 🤓 🟩🟨⬛</h1>
+      <p class="tagline">How to join, submit, and show up on the leaderboard.</p>
+    </div>
+    <nav class="nav">
+      <a href="index.html">Today</a>
+      <a href="leaderboard.html">Leaderboard</a>
+      <a href="daily.html">Archive</a>
+      <a href="answers.html">Past Answers</a>
+      <a href="profile.html">Profile</a>
+      <a href="howto.html" aria-current="page">How To</a>
+    </nav>
+    <section class="ticker-shell header-ticker" aria-label="Weekly standings banner">
+      <div class="ticker-track-wrap">
+        <div id="weekly-ticker-track" class="ticker-track">
+          <span class="ticker-item">Loading weekly standings…</span>
+        </div>
+      </div>
+    </section>
+  </header>
+
+  <main class="page-grid single-column">
+    <section class="card">
+      <div class="section-head wrap">
+        <h2>How to use Wordle Nerdles</h2>
+        <span class="badge">Quick start</span>
+      </div>
+      <ol class="howto-list">
+        <li>Go to the <strong>Today</strong> page.</li>
+        <li>Create an account with your display name, email, and password.</li>
+        <li><strong>Email confirmation is no longer required.</strong></li>
+        <li>After signing up or signing in, <strong>refresh the page once</strong>.</li>
+        <li>Paste your Wordle share text into the submit form.</li>
+        <li>Add a screenshot if you want. It is optional and you can add it later.</li>
+        <li>Tap <strong>Preview parse</strong> if you want to double-check it, then tap <strong>Submit result</strong>.</li>
+        <li>Your result will show up on the home page, archive, and leaderboard.</li>
+      </ol>
+      <div class="howto-note">Tip: the copied Wordle share text is the official score for the leaderboard.</div>
+    </section>
+
+    <section class="card howto-grid">
+      <div class="section-head">
+        <h3>Step 1 — Find your way around</h3>
+        <span class="badge">Navigation</span>
+      </div>
+      <div class="howto-step-grid">
+        <div class="howto-shot">
+          <img src="assets/howto-nav.png" alt="Annotated navigation screenshot">
+        </div>
+        <div>
+          <ol class="howto-list">
+            <li><strong>Today</strong> is where you sign in and submit your score.</li>
+            <li><strong>Leaderboard</strong> shows daily, weekly, monthly, and all-time rankings.</li>
+            <li><strong>Archive</strong> shows older puzzle boards and screenshots.</li>
+            <li><strong>Past Answers</strong> lets you browse older Wordle answers.</li>
+            <li><strong>Profile</strong> lets you edit your avatar and catchphrase.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="card howto-grid">
+      <div class="section-head">
+        <h3>Step 2 — Sign up or sign in</h3>
+        <span class="badge">Account</span>
+      </div>
+      <div class="howto-step-grid">
+        <div class="howto-shot">
+          <img src="assets/howto-account.png" alt="Annotated account screenshot">
+        </div>
+        <div>
+          <ol class="howto-list">
+            <li>Enter a display name that your friends will recognize.</li>
+            <li>Use your email and choose a password.</li>
+            <li>Tap <strong>Sign up</strong> if it is your first time.</li>
+            <li>Tap <strong>Sign in</strong> after your account already exists.</li>
+            <li><strong>Refresh the page once after signup or login.</strong> This helps the account state update correctly.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="card howto-grid">
+      <div class="section-head">
+        <h3>Step 3 — Submit your score</h3>
+        <span class="badge">Submission</span>
+      </div>
+      <div class="howto-step-grid">
+        <div class="howto-shot">
+          <img src="assets/howto-submit.png" alt="Annotated submission screenshot">
+        </div>
+        <div>
+          <ol class="howto-list">
+            <li>Copy the normal Wordle share text from the game.</li>
+            <li>Paste it into the <strong>Wordle share text</strong> box.</li>
+            <li>Screenshot upload is optional.</li>
+            <li>Use <strong>Preview parse</strong> to make sure the pasted result looks correct.</li>
+            <li>Tap <strong>Submit result</strong>.</li>
+            <li>If you forgot the screenshot, you can add it later under your submission.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/ticker.js"></script>
+</body>
+</html>

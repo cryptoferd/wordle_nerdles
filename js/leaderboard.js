@@ -10,8 +10,6 @@ const periodNavLabel = document.getElementById('period-nav-label');
 const periodPrevBtn = document.getElementById('period-prev-btn');
 const periodCurrentBtn = document.getElementById('period-current-btn');
 const periodNextBtn = document.getElementById('period-next-btn');
-const WORDLE_ANCHOR_PUZZLE = 1758;
-const WORDLE_ANCHOR_DATE = '2026-04-12';
 
 const state = {
   range: 'week',

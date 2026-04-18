@@ -952,3 +952,53 @@ th { color: var(--muted); font-size: 0.9rem; }
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+
+.howto-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.howto-step-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.howto-shot {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0f0f10;
+}
+
+.howto-shot img {
+  width: 100%;
+  display: block;
+}
+
+.howto-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--text);
+}
+
+.howto-list li + li {
+  margin-top: 0.55rem;
+}
+
+.howto-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(181,159,59,0.35);
+  background: rgba(181,159,59,0.12);
+  color: #f2e3a2;
+}
+
+@media (min-width: 980px) {
+  .howto-step-grid {
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: start;
+  }
+}
