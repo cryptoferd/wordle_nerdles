@@ -1209,3 +1209,108 @@ th { color: var(--muted); font-size: 0.9rem; }
     order: 3;
   }
 }
+
+
+/* Global overflow guards */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.page-grid,
+.single-column,
+.card,
+.hero-card,
+.hero-copy,
+.hero-stats,
+.summary-grid,
+.profile-view-grid,
+.daily-card-grid,
+.answers-grid,
+.answers-toolbar,
+.button-row,
+.section-head,
+.table-wrap,
+.profile-header-main,
+.profile-view-header,
+.practice-shell,
+.practice-board-card,
+.practice-side-card,
+.comments-shell,
+.comment-body-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.card {
+  overflow: hidden;
+}
+
+img,
+table,
+input,
+textarea,
+select,
+button {
+  max-width: 100%;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .page-grid,
+  .single-column {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .card,
+  .hero-card,
+  .practice-board-card,
+  .practice-side-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .section-head,
+  .button-row,
+  .answers-toolbar,
+  .hero-stats {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .section-head > *,
+  .button-row > *,
+  .answers-toolbar > * {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-grid {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .card {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .section-head,
+  .button-row,
+  .answers-toolbar,
+  .practice-status-bar {
+    width: 100%;
+  }
+
+  .table-wrap {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
