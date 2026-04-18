@@ -2,6 +2,8 @@ import { supabase } from './supabase-client.js';
 
 const CHICAGO_TZ = 'America/Chicago';
 const DEFAULT_AVATAR = './assets/default-avatar.svg';
+const WORDLE_ANCHOR_PUZZLE = 1758;
+const WORDLE_ANCHOR_DATE = '2026-04-12';
 const wrap = document.getElementById('leaderboard-table-wrap');
 const summaryWrap = document.getElementById('leaderboard-summary');
 const buttons = [...document.querySelectorAll('.filter-btn')];
