@@ -1,6 +1,8 @@
 const API_BASE = 'https://wordlehints.co.uk/wp-json/wordlehint/v1/answers';
+const WORDLIST_URL = 'https://cdn.jsdelivr.net/gh/nolanlad/nyt_wordle_word_list@main/nyt_wordle_list.py';
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const CACHE_KEY = 'wordlePracticeAnswers:v1';
+const WORDLIST_CACHE_KEY = 'wordlePracticeAllowedWords:v1';
 const MAX_ROWS = 6;
 const WORD_LENGTH = 5;
 const KEYBOARD_ROWS = [
@@ -11,6 +13,7 @@ const KEYBOARD_ROWS = [
 
 const state = {
   allAnswers: [],
+  allowedWords: new Set(),
   answer: '',
   answerMeta: null,
   guesses: [],
@@ -65,6 +68,59 @@ function writeCache(answers) {
   } catch {
     // ignore storage issues
   }
+}
+
+function readWordlistCache() {
+  try {
+    const raw = localStorage.getItem(WORDLIST_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.cachedAt || !Array.isArray(parsed?.words)) return null;
+    if (Date.now() - parsed.cachedAt > CACHE_TTL_MS) return null;
+    return parsed.words;
+  } catch {
+    return null;
+  }
+}
+
+function writeWordlistCache(words) {
+  try {
+    localStorage.setItem(WORDLIST_CACHE_KEY, JSON.stringify({
+      cachedAt: Date.now(),
+      words,
+    }));
+  } catch {
+    // ignore storage issues
+  }
+}
+
+function parsePythonWordList(sourceText) {
+  const matches = sourceText.match(/'([a-z]{5})'|"([a-z]{5})"/gi) || [];
+  const words = [...new Set(
+    matches.map((token) => token.slice(1, -1).toLowerCase()).filter((word) => /^[a-z]{5}$/.test(word))
+  )];
+  return words;
+}
+
+async function fetchAllowedWords() {
+  const cached = readWordlistCache();
+  if (cached?.length) {
+    return cached;
+  }
+
+  const response = await fetch(WORDLIST_URL);
+  if (!response.ok) {
+    throw new Error('Could not load the practice word list.');
+  }
+
+  const text = await response.text();
+  const words = parsePythonWordList(text);
+  if (!words.length) {
+    throw new Error('Practice word list was empty.');
+  }
+
+  writeWordlistCache(words);
+  return words;
 }
 
 async function fetchAllAnswers() {
@@ -216,6 +272,12 @@ function submitGuess() {
   }
 
   const word = state.currentGuess.toUpperCase();
+
+  if (!state.allowedWords.has(word.toLowerCase())) {
+    setStatus('Not in word list.', 'danger-badge');
+    return;
+  }
+
   const score = scoreGuess(word, state.answer);
   state.guesses.push({ word, score });
   state.currentGuess = '';
@@ -309,13 +371,19 @@ el.reveal?.addEventListener('click', revealAnswer);
 
 async function init() {
   try {
-    state.allAnswers = await fetchAllAnswers();
+    const [answers, allowedWords] = await Promise.all([
+      fetchAllAnswers(),
+      fetchAllowedWords(),
+    ]);
+    state.allAnswers = answers;
+    state.allowedWords = new Set(allowedWords);
     setStatus(`${state.allAnswers.length} practice answers loaded.`);
+    el.meta.textContent = `Answer archive and ${state.allowedWords.size.toLocaleString()} allowed guesses are cached in your browser for 12 hours.`;
     startNewGame();
   } catch (error) {
     console.error(error);
-    setStatus(error.message || 'Could not load practice answers.', 'danger-badge');
-    el.meta.textContent = 'Practice mode could not load the answer archive.';
+    setStatus(error.message || 'Could not load practice data.', 'danger-badge');
+    el.meta.textContent = 'Practice mode could not load the answer archive or allowed word list.';
   }
 }
 
