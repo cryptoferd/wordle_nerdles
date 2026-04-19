@@ -4,6 +4,10 @@ const CHICAGO_TZ = 'America/Chicago';
 const DEFAULT_AVATAR = './assets/default-avatar.svg';
 const WORDLE_ANCHOR_PUZZLE = 1758;
 const WORDLE_ANCHOR_DATE = '2026-04-12';
+const MONTHLY_TARGET_COMPLETION = 0.4;
+const ALLTIME_TARGET_COMPLETION = 0.2;
+const PARTICIPATION_PENALTY_WEIGHT = 1.25;
+const BELOW_TARGET_EXTRA_WEIGHT = 2.0;
 const wrap = document.getElementById('leaderboard-table-wrap');
 const summaryWrap = document.getElementById('leaderboard-summary');
 const buttons = [...document.querySelectorAll('.filter-btn')];
@@ -128,7 +132,8 @@ async function getAvatarUrlMap(rows) {
   return map;
 }
 
-function aggregateSolvedRows(rows) {
+function aggregateWeeklyRows(rows) {
+  const requiredPuzzleCount = getUniquePuzzleCount(rows);
   const byUser = new Map();
 
   for (const row of rows) {
@@ -153,11 +158,60 @@ function aggregateSolvedRows(rows) {
   }
 
   return [...byUser.values()]
+    .filter((row) => row.games >= requiredPuzzleCount)
     .map((row) => ({
       ...row,
       average: row.games ? row.totalScore / row.games : null,
     }))
     .sort((a, b) => {
+      if ((a.average ?? 99) !== (b.average ?? 99)) return (a.average ?? 99) - (b.average ?? 99);
+      if (a.games !== b.games) return b.games - a.games;
+      if ((a.best ?? 99) !== (b.best ?? 99)) return (a.best ?? 99) - (b.best ?? 99);
+      return a.display_name.localeCompare(b.display_name);
+    });
+}
+
+function aggregateWeightedRows(rows, targetCompletionRate) {
+  const totalPossibleGames = getUniquePuzzleCount(rows);
+  const byUser = new Map();
+
+  for (const row of rows) {
+    if (!row.solved || !Number.isFinite(row.score)) continue;
+    const current = byUser.get(row.user_id) || {
+      user_id: row.user_id,
+      display_name: row.display_name || 'Unknown',
+      avatar_url: row.avatar_url || null,
+      catchphrase: row.catchphrase || '',
+      games: 0,
+      totalScore: 0,
+      best: null,
+      lastPlayedAt: null,
+    };
+    current.games += 1;
+    current.totalScore += row.score;
+    current.best = current.best == null ? row.score : Math.min(current.best, row.score);
+    current.lastPlayedAt = current.lastPlayedAt ? Math.max(Date.parse(current.lastPlayedAt), Date.parse(row.submitted_at)) : Date.parse(row.submitted_at);
+    if (!current.avatar_url && row.avatar_url) current.avatar_url = row.avatar_url;
+    if (!current.catchphrase && row.catchphrase) current.catchphrase = row.catchphrase;
+    byUser.set(row.user_id, current);
+  }
+
+  return [...byUser.values()]
+    .map((row) => {
+      const average = row.games ? row.totalScore / row.games : null;
+      const completionRate = totalPossibleGames ? row.games / totalPossibleGames : 0;
+      const basePenalty = (1 - completionRate) * PARTICIPATION_PENALTY_WEIGHT;
+      const extraPenalty = Math.max(0, targetCompletionRate - completionRate) * BELOW_TARGET_EXTRA_WEIGHT;
+      const adjustedScore = Math.min(6, (average ?? 99) + basePenalty + extraPenalty);
+      return {
+        ...row,
+        average,
+        completionRate,
+        adjustedScore,
+      };
+    })
+    .sort((a, b) => {
+      if ((a.adjustedScore ?? 99) !== (b.adjustedScore ?? 99)) return (a.adjustedScore ?? 99) - (b.adjustedScore ?? 99);
       if (a.games !== b.games) return b.games - a.games;
       if ((a.average ?? 99) !== (b.average ?? 99)) return (a.average ?? 99) - (b.average ?? 99);
       if ((a.best ?? 99) !== (b.best ?? 99)) return (a.best ?? 99) - (b.best ?? 99);
@@ -165,9 +219,8 @@ function aggregateSolvedRows(rows) {
     });
 }
 
-function renderSummaryCards(rows, title) {
+function renderSummaryCards(rows, leaderboard, title, detailText) {
   const solved = rows.filter((row) => row.solved && Number.isFinite(row.score));
-  const leaderboard = aggregateSolvedRows(rows);
   const leader = leaderboard[0];
   const avg = solved.length ? (solved.reduce((sum, row) => sum + row.score, 0) / solved.length).toFixed(2) : '—';
 
@@ -180,7 +233,7 @@ function renderSummaryCards(rows, title) {
     <article class="summary-card">
       <span class="summary-label">Leader</span>
       <strong>${leader ? escapeHtml(leader.display_name) : '—'}</strong>
-      <p class="muted">${leader ? `${leader.average.toFixed(2)} avg` : 'No solves yet.'}</p>
+      <p class="muted">${leader ? (Number.isFinite(leader.adjustedScore) ? `${leader.adjustedScore.toFixed(2)} weighted` : `${leader.average.toFixed(2)} avg`) : 'No solves yet.'}</p>
     </article>
     <article class="summary-card">
       <span class="summary-label">Solved games</span>
@@ -188,9 +241,9 @@ function renderSummaryCards(rows, title) {
       <p class="muted">Average score ${avg}</p>
     </article>
     <article class="summary-card">
-      <span class="summary-label">Top best</span>
-      <strong>${leader?.best ? `${leader.best}/6` : '—'}</strong>
-      <p class="muted">Best single winning score in this view</p>
+      <span class="summary-label">Participation</span>
+      <strong>${detailText || '—'}</strong>
+      <p class="muted">How games played affects this board</p>
     </article>
   `;
 }
@@ -220,7 +273,7 @@ async function renderDailyWinner(rows) {
     });
 
   const winner = dailyRows.find((row) => row.solved) || null;
-  renderSummaryCards(dailyRows, `Puzzle #${latestPuzzle}`);
+  renderSummaryCards(dailyRows, dailyRows.filter((row) => row.solved), `Puzzle #${latestPuzzle}`, 'Daily board');
 
   if (!dailyRows.length) {
     wrap.textContent = 'No daily data yet.';
@@ -327,8 +380,21 @@ async function loadLeaderboard() {
     title = `${formatChicagoMonthLabelFromParts(monthRange.year, monthRange.month)} · Chicago`;
   }
 
-  const leaderboard = aggregateSolvedRows(filteredRows);
-  renderSummaryCards(filteredRows, title);
+  let leaderboard = [];
+  let detailText = 'Standard ranking';
+
+  if (state.range === 'week') {
+    leaderboard = aggregateWeeklyRows(filteredRows);
+    detailText = `Must play all ${getUniquePuzzleCount(filteredRows)} weekly puzzles`;
+  } else if (state.range === 'month') {
+    leaderboard = aggregateWeightedRows(filteredRows, MONTHLY_TARGET_COMPLETION);
+    detailText = `Weighted · target ${Math.ceil(getUniquePuzzleCount(filteredRows) * MONTHLY_TARGET_COMPLETION)}/${getUniquePuzzleCount(filteredRows)} games`;
+  } else if (state.range === 'all') {
+    leaderboard = aggregateWeightedRows(filteredRows, ALLTIME_TARGET_COMPLETION);
+    detailText = `Weighted · target ${Math.ceil(getUniquePuzzleCount(filteredRows) * ALLTIME_TARGET_COMPLETION)}/${getUniquePuzzleCount(filteredRows)} games`;
+  }
+
+  renderSummaryCards(filteredRows, leaderboard, title, detailText);
 
   if (!leaderboard.length) {
     wrap.textContent = 'No leaderboard data yet.';
@@ -346,6 +412,7 @@ async function loadLeaderboard() {
             <th>Player</th>
             <th>Games solved</th>
             <th>Average</th>
+            ${state.range === 'month' || state.range === 'all' ? '<th>Weighted</th><th>Played</th>' : ''}
             <th>Best</th>
           </tr>
         </thead>
@@ -356,6 +423,9 @@ async function loadLeaderboard() {
               <td>${renderPlayerCell(row, avatarMap.get(row.avatar_url) || DEFAULT_AVATAR, index === 0)}</td>
               <td>${row.games}</td>
               <td>${row.average.toFixed(2)}</td>
+              ${state.range === 'month' || state.range === 'all'
+                ? `<td>${row.adjustedScore.toFixed(2)}</td><td>${Math.round(row.completionRate * 100)}%</td>`
+                : ''}
               <td>${row.best}/6</td>
             </tr>
           `).join('')}
