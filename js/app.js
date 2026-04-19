@@ -430,11 +430,20 @@ async function renderTodayStandings(players) {
     const isOwn = state.session?.user?.id === player.user_id;
     let screenshotHtml = '';
 
+    const viewerHasSubmittedToday = Boolean(
+      state.session?.user?.id && players.some((row) => row.user_id === state.session.user.id)
+    );
+    const canViewScreenshot = isOwn || viewerHasSubmittedToday;
+
     if (player.screenshot_path) {
-      const signedUrl = await getSignedScreenshotUrl(player.screenshot_path);
-      screenshotHtml = signedUrl
-        ? `<div class="screenshot-card"><img src="${signedUrl}" alt="${escapeHtml(player.display_name || 'Unknown')} screenshot" data-fullsrc="${signedUrl}" /></div>`
-        : `<div class="screenshot-locked">Screenshot unavailable.</div>`;
+      if (canViewScreenshot) {
+        const signedUrl = await getSignedScreenshotUrl(player.screenshot_path);
+        screenshotHtml = signedUrl
+          ? `<div class="screenshot-card"><img src="${signedUrl}" alt="${escapeHtml(player.display_name || 'Unknown')} screenshot" data-fullsrc="${signedUrl}" /></div>`
+          : `<div class="screenshot-locked">Screenshot unavailable.</div>`;
+      } else {
+        screenshotHtml = `<div class="screenshot-locked">Submit today’s puzzle to unlock screenshots.</div>`;
+      }
     } else if (isOwn) {
       screenshotHtml = `
         <div class="screenshot-uploader-inline">
