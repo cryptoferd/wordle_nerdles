@@ -233,7 +233,15 @@ function renderSummaryCards(rows, leaderboard, title, detailText) {
     <article class="summary-card">
       <span class="summary-label">Leader</span>
       <strong>${leader ? escapeHtml(leader.display_name) : '—'}</strong>
-      <p class="muted">${leader ? (Number.isFinite(leader.adjustedScore) ? `${leader.adjustedScore.toFixed(2)} weighted` : `${leader.average.toFixed(2)} avg`) : 'No solves yet.'}</p>
+      <p class="muted">${leader
+        ? (Number.isFinite(leader.adjustedScore)
+            ? `${leader.adjustedScore.toFixed(2)} weighted`
+            : Number.isFinite(leader.average)
+              ? `${leader.average.toFixed(2)} avg`
+              : Number.isFinite(leader.score)
+                ? `${leader.score}/6`
+                : 'Solved')
+        : 'No solves yet.'}</p>
     </article>
     <article class="summary-card">
       <span class="summary-label">Solved games</span>
