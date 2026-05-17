@@ -243,6 +243,16 @@ function renderComposer(submissionId, replyToId = '') {
   `;
 }
 
+function canViewerAccessPuzzleComments(submissions, sessionUserId, submissionId) {
+  if (!sessionUserId) return false;
+  const currentSubmission = submissions.find((row) => row.id === submissionId);
+  if (!currentSubmission) return false;
+  return submissions.some(
+    (row) => row.user_id === sessionUserId && row.puzzle_number === currentSubmission.puzzle_number
+  );
+}
+
+
 async function fetchCommentsForSubmissionIds(submissionIds) {
   if (!submissionIds.length) return [];
   const { data, error } = await supabase
@@ -362,22 +372,27 @@ export async function mountComments({ container, submissions, session, onError, 
     const submissionId = host.dataset.commentsHost;
     const submissionComments = commentsBySubmission.get(submissionId) || [];
     const tree = buildTree(submissionComments);
+    const canViewComments = canViewerAccessPuzzleComments(submissions, session?.user?.id || null, submissionId);
 
     host.innerHTML = `
       <div class="comments-shell">
         <div class="comments-head">
           <strong>Comments</strong>
-          <span class="muted">${submissionComments.length} total</span>
+          <span class="muted">${canViewComments ? `${submissionComments.length} total` : 'Locked'}</span>
         </div>
 
-        ${session?.user
-          ? `<div class="comments-composer">${renderComposer(submissionId)}</div>`
-          : `<div class="comments-signin-hint muted">Sign in to comment.</div>`}
+        ${canViewComments
+          ? (session?.user
+              ? `<div class="comments-composer">${renderComposer(submissionId)}</div>`
+              : `<div class="comments-signin-hint muted">Sign in to comment.</div>`)
+          : `<div class="comments-signin-hint muted">Submit this puzzle to unlock comments.</div>`}
 
         <div class="comments-thread">
-          ${tree.length
-            ? tree.map((comment) => renderCommentNode(comment, avatarMap, session?.user?.id || null, reactionsByCommentId)).join('')
-            : `<div class="comments-empty muted">No comments yet. Be the first.</div>`}
+          ${canViewComments
+            ? (tree.length
+                ? tree.map((comment) => renderCommentNode(comment, avatarMap, session?.user?.id || null, reactionsByCommentId)).join('')
+                : `<div class="comments-empty muted">No comments yet. Be the first.</div>`)
+            : ''}
         </div>
       </div>
     `;
