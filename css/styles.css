@@ -1417,3 +1417,232 @@ button {
     margin-top: 8px;
   }
 }
+
+
+/* Floating signed-in profile and notifications */
+@media (min-width: 1101px) {
+  .site-header .nav {
+    margin-right: 225px;
+  }
+}
+
+.floating-user-panel {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(26,26,27,0.96);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.floating-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text);
+}
+
+.floating-profile-link:hover {
+  color: var(--text);
+}
+
+.floating-user-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #121213;
+}
+
+.floating-user-name {
+  max-width: 125px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.notification-bell-btn,
+.notification-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text);
+  padding: 0;
+}
+
+.notification-bell-btn {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 999px;
+  font-size: 1.1rem;
+}
+
+.notification-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  font-size: 1.35rem;
+}
+
+.notification-count-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #d94b4b;
+  color: white;
+  border: 2px solid var(--panel);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 17px;
+  text-align: center;
+}
+
+.notification-panel {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  z-index: 121;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(70vh, 620px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(26,26,27,0.99);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+}
+
+.notification-panel-head,
+.notification-panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.notification-panel-actions {
+  justify-content: flex-end;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.notification-list {
+  max-height: calc(min(70vh, 620px) - 112px);
+  overflow-y: auto;
+}
+
+.notification-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.notification-item:hover {
+  background: rgba(255,255,255,0.05);
+  filter: none;
+}
+
+.notification-item.unread {
+  background: rgba(83,141,78,0.11);
+}
+
+.notification-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: #121213;
+}
+
+.notification-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.notification-message {
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.notification-time {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.notification-unread-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--green);
+}
+
+.notification-empty {
+  padding: 22px 16px;
+  text-align: center;
+}
+
+.favorite-profile-btn {
+  margin-top: 12px;
+}
+
+.favorite-profile-btn.active {
+  border-color: rgba(181,159,59,0.65);
+  background: rgba(181,159,59,0.13);
+  color: #f1df91;
+}
+
+@media (max-width: 1100px) {
+  .floating-user-panel {
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .notification-panel {
+    top: auto;
+    right: 12px;
+    bottom: 66px;
+    max-height: min(68vh, 560px);
+  }
+
+  .notification-list {
+    max-height: calc(min(68vh, 560px) - 112px);
+  }
+
+  .floating-user-name {
+    max-width: 100px;
+  }
+}

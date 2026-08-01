@@ -60,6 +60,85 @@ async function uploadAvatar(userId, file) {
   return path;
 }
 
+
+async function isFavoriteProfile(followerId, favoriteUserId) {
+  const { data, error } = await supabase
+    .from('profile_favorites')
+    .select('favorite_user_id')
+    .eq('follower_id', followerId)
+    .eq('favorite_user_id', favoriteUserId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
+async function setFavoriteProfile(followerId, favoriteUserId, shouldFavorite) {
+  if (shouldFavorite) {
+    const { error } = await supabase
+      .from('profile_favorites')
+      .insert({
+        follower_id: followerId,
+        favorite_user_id: favoriteUserId,
+      });
+
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await supabase
+    .from('profile_favorites')
+    .delete()
+    .eq('follower_id', followerId)
+    .eq('favorite_user_id', favoriteUserId);
+
+  if (error) throw error;
+}
+
+async function wireFavoriteButton(sessionUserId, targetUserId) {
+  const button = document.getElementById('favorite-profile-btn');
+  if (!button) return;
+
+  let isFavorite;
+
+  try {
+    isFavorite = await isFavoriteProfile(sessionUserId, targetUserId);
+  } catch (error) {
+    console.error(error);
+    button.textContent = 'Run notification SQL to enable favorites';
+    button.disabled = true;
+    return;
+  }
+
+  const updateLabel = () => {
+    button.textContent = isFavorite
+      ? '★ Puzzle notifications enabled'
+      : '☆ Notify me when this player submits';
+    button.classList.toggle('active', isFavorite);
+    button.setAttribute('aria-pressed', String(isFavorite));
+  };
+
+  updateLabel();
+
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+
+    try {
+      await setFavoriteProfile(sessionUserId, targetUserId, !isFavorite);
+      isFavorite = !isFavorite;
+      updateLabel();
+      showToast(isFavorite
+        ? 'You will be notified when this player submits.'
+        : 'Submission notifications disabled for this player.');
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || 'Could not update favorite.');
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 function computeStats(submissions) {
   const solved = (submissions || []).filter((row) => row.solved && Number.isFinite(row.score));
   const total = submissions?.length || 0;
@@ -188,7 +267,7 @@ async function renderOwnProfile(session, profile, submissions, avatarSrc) {
   });
 }
 
-function renderViewOnlyProfile(profile, submissions, avatarSrc, isSelfLink) {
+function renderViewOnlyProfile(session, profile, submissions, avatarSrc, isSelfLink) {
   const stats = computeStats(submissions);
   const pageLabel = isSelfLink ? 'This is your public player card.' : 'Public player card';
 
@@ -203,6 +282,9 @@ function renderViewOnlyProfile(profile, submissions, avatarSrc, isSelfLink) {
             <h2>${escapeHtml(profile.display_name)}</h2>
             <p class="profile-view-subtitle">${pageLabel}</p>
             <p class="muted">${profile.catchphrase ? `“${escapeHtml(profile.catchphrase)}”` : 'No catchphrase yet.'}</p>
+            <button id="favorite-profile-btn" class="favorite-profile-btn ghost-btn" type="button" aria-pressed="false">
+              ☆ Notify me when this player submits
+            </button>
           </div>
         </div>
 
@@ -223,6 +305,8 @@ function renderViewOnlyProfile(profile, submissions, avatarSrc, isSelfLink) {
       </section>
     </div>
   `;
+
+  wireFavoriteButton(session.user.id, profile.id);
 }
 
 async function loadProfile() {
@@ -255,7 +339,7 @@ async function loadProfile() {
   if (isOwnProfile) {
     await renderOwnProfile(session, profile, submissions || [], avatarSrc);
   } else {
-    renderViewOnlyProfile(profile, submissions || [], avatarSrc, false);
+    renderViewOnlyProfile(session, profile, submissions || [], avatarSrc, false);
   }
 }
 
