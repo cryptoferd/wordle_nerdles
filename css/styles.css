@@ -1646,3 +1646,129 @@ button {
     max-width: 100px;
   }
 }
+
+
+/* Profile Hall of Fame, Hall of Shame, and full history */
+.profile-halls-card {
+  display: grid;
+  gap: 20px;
+}
+
+.profile-fame-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profile-shame-section {
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.profile-shame-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px);
+}
+
+.profile-spotlight-card,
+.profile-history-card {
+  min-width: 0;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.profile-spotlight-card {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-spotlight-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-spotlight-head strong {
+  display: block;
+  margin-top: 5px;
+}
+
+.profile-puzzle-shot {
+  width: 100%;
+  height: 260px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #0f0f10;
+  border: 1px solid var(--border);
+}
+
+.profile-puzzle-shot.compact {
+  height: 210px;
+}
+
+.profile-shot-link {
+  display: block;
+}
+
+.profile-shot-empty {
+  min-height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+}
+
+.profile-mini-grid {
+  margin-top: 0;
+}
+
+.profile-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.profile-history-card {
+  display: grid;
+  gap: 12px;
+}
+
+.profile-history-pagination {
+  margin-top: 18px;
+}
+
+@media (max-width: 900px) {
+  .profile-fame-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-shame-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-puzzle-shot.compact {
+    height: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-history-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-puzzle-shot,
+  .profile-puzzle-shot.compact {
+    height: 240px;
+  }
+
+  .profile-spotlight-head {
+    align-items: center;
+  }
+}
